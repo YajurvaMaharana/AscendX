@@ -22,8 +22,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 
 interface FeedbackCategory {
   label: string;
@@ -159,6 +157,10 @@ export default function FeedbackPage() {
     const element = document.getElementById("interview-report-card");
     if (!element) return;
     try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
       const canvas = await html2canvas(element, { scale: 2, useCORS: true });
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
@@ -171,45 +173,31 @@ export default function FeedbackPage() {
     }
   };
 
-  React.useEffect(() => {
-    let isMounted = true;
+  const fetchOrGenerateFeedback = React.useCallback(async () => {
+    if (!sessionId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/interviews/${encodeURIComponent(sessionId)}/feedback`, {
+        method: "POST",
+      });
 
-    async function fetchOrGenerateFeedback() {
-      setLoading(true);
-      setError(null);
-      try {
-        // Try to generate or retrieve the report
-        const res = await fetch(`/api/interviews/${encodeURIComponent(sessionId)}/feedback`, {
-          method: "POST",
-        });
-
-        if (!res.ok) {
-          throw new Error(`Server returned status ${res.status}`);
-        }
-
-        const data = await res.json();
-        if (isMounted) {
-          setReport(data.report);
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          setError(err?.message || "Failed to generate evaluation report.");
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+      if (!res.ok) {
+        throw new Error(`Server returned status ${res.status}`);
       }
-    }
 
-    if (sessionId) {
-      fetchOrGenerateFeedback();
+      const data = await res.json();
+      setReport(data.report);
+    } catch (err: any) {
+      setError(err?.message || "Failed to generate evaluation report.");
+    } finally {
+      setLoading(false);
     }
-
-    return () => {
-      isMounted = false;
-    };
   }, [sessionId]);
+
+  React.useEffect(() => {
+    fetchOrGenerateFeedback();
+  }, [fetchOrGenerateFeedback]);
 
   const categories = report?.scores?.categories || [];
   const strengths = report?.scores?.strengths || [];
@@ -305,7 +293,7 @@ export default function FeedbackPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.location.reload()}
+                onClick={() => fetchOrGenerateFeedback()}
                 className="gap-1.5"
               >
                 <RefreshCw className="h-3.5 w-3.5" />

@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 import * as React from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Bot,
@@ -19,16 +19,21 @@ import {
   Mic,
   MessageSquare,
   Target,
+  Sliders,
+  LayoutGrid,
 } from "lucide-react";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { ChatBubble, type ChatMessage } from "@/components/interview/ChatBubble";
 import { InterviewInput } from "@/components/interview/InterviewInput";
 import { LiveVoiceWorkspace } from "@/components/interview/LiveVoiceWorkspace";
+import { DualPaneWorkspace } from "@/components/interview/DualPaneWorkspace";
 import { Button } from "@/components/ui/button";
 import { AdaptiveTelemetryHUD } from "@/components/interview/AdaptiveTelemetryHUD";
 import { InterviewerAudioPlayer } from "@/components/interview/InterviewerAudioPlayer";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { cn } from "@/lib/utils";
+import PreFlightModal from "@/components/interview/PreFlightModal";
+import type { PreFlightCheckResults } from "@/components/interview/PreFlightDiagnostic";
 import type { SessionAdaptiveTelemetry } from "@/lib/services/ai-engine/adaptive-engine.service";
 import type { JobDescriptionParsedData } from "@/lib/types/database.types";
 
@@ -52,11 +57,24 @@ interface SessionData {
 export default function InterviewPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const interviewId = (params?.id as string) || "demo-session";
+
+  // Pre-Flight Diagnostic State: Check if already cleared or passed via query
+  const hasPassedPreflightParam = searchParams?.get("preflight") === "passed";
+  const [showPreFlightModal, setShowPreFlightModal] = React.useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      if (hasPassedPreflightParam) return false;
+      const cleared = sessionStorage.getItem(`preflight_cleared_${interviewId}`);
+      return !cleared;
+    }
+    return false;
+  });
 
   const [session, setSession] = React.useState<SessionData | null>(null);
   const [telemetry, setTelemetry] = React.useState<SessionAdaptiveTelemetry | null>(null);
   const [isVoiceMode, setIsVoiceMode] = React.useState(false);
+  const [activeLayout, setActiveLayout] = React.useState<"dual-pane" | "stream">("dual-pane");
   const [messages, setMessages] = React.useState<ChatMessage[]>([
     {
       id: "initial-greeting",
@@ -98,9 +116,28 @@ export default function InterviewPage() {
     return "Alex Vance (Lead)";
   }, [session?.persona]);
 
+  // Handle successful completion of Pre-Flight Check
+  const handlePreFlightProceed = (results: PreFlightCheckResults) => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(`preflight_cleared_${interviewId}`, "true");
+    }
+    setShowPreFlightModal(false);
+
+    // Speak initial greeting smoothly once pre-flight is cleared
+    if (latestAiMessage && latestAiMessage.id && tts.autoPlayEnabled && !tts.isMuted) {
+      if (!spokenMessageIdsRef.current.has(latestAiMessage.id)) {
+        spokenMessageIdsRef.current.add(latestAiMessage.id);
+        setTimeout(() => {
+          tts.speak(latestAiMessage.content);
+        }, 400);
+      }
+    }
+  };
+
   // Auto-speak new AI interviewer questions as soon as generated (Hands-Free Flow)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => {
+    if (showPreFlightModal) return; // Do not speak while preflight diagnostic is active
     if (!latestAiMessage || !latestAiMessage.id) return;
 
     if (!spokenMessageIdsRef.current.has(latestAiMessage.id)) {
@@ -114,7 +151,7 @@ export default function InterviewPage() {
         return () => clearTimeout(timer);
       }
     }
-  }, [latestAiMessage]);
+  }, [latestAiMessage, showPreFlightModal]);
 
   // Load existing session, messages, and initial telemetry
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -161,6 +198,9 @@ export default function InterviewPage() {
     }
 
     loadSessionData();
+    if (interviewId) {
+      router.prefetch(`/interview/${encodeURIComponent(interviewId)}/feedback`);
+    }
     return () => {
       isMounted = false;
       tts.stop();
@@ -253,7 +293,8 @@ export default function InterviewPage() {
 
   const handleEndSession = () => {
     tts.stop();
-    router.push(`/interview/${encodeURIComponent(interviewId)}/feedback`);
+    const targetUrl = `/interview/${encodeURIComponent(interviewId)}/feedback`;
+    router.push(targetUrl);
   };
 
   return (
@@ -294,33 +335,35 @@ export default function InterviewPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Mode switcher in header */}
+          {/* Layout switcher: Dual-Pane vs Stream */}
           <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700">
             <button
               type="button"
-              onClick={() => setIsVoiceMode(false)}
+              onClick={() => setActiveLayout("dual-pane")}
               className={cn(
                 "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
-                !isVoiceMode
-                  ? "bg-white dark:bg-[#181E29] text-slate-900 dark:text-white shadow-2xs"
+                activeLayout === "dual-pane"
+                  ? "bg-gradient-to-r from-[#E8602E] to-[#F17E45] text-white shadow-2xs"
                   : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
               )}
+              title="Interactive Dual-Pane Mock Interview Workspace"
             >
-              <MessageSquare className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Text Mode</span>
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Dual-Pane</span>
             </button>
             <button
               type="button"
-              onClick={() => setIsVoiceMode(true)}
+              onClick={() => setActiveLayout("stream")}
               className={cn(
                 "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
-                isVoiceMode
-                  ? "bg-gradient-to-r from-[#E8602E] to-[#F17E45] text-white shadow-2xs"
-                  : "text-slate-500 hover:text-orange-600 dark:hover:text-orange-400"
+                activeLayout === "stream"
+                  ? "bg-white dark:bg-[#181E29] text-slate-900 dark:text-white shadow-2xs"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
               )}
+              title="Classic Conversation Feed"
             >
-              <Mic className="h-3.5 w-3.5" />
-              <span>Voice Mode</span>
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Feed</span>
             </button>
           </div>
 
@@ -328,6 +371,19 @@ export default function InterviewPage() {
             <Zap className="h-3.5 w-3.5 text-[#E87A42]" />
             <span>Adaptive Engine Live</span>
           </div>
+
+          {/* Pre-Flight Diagnostic Trigger */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPreFlightModal(true)}
+            className="gap-1.5 text-xs font-semibold rounded-xl bg-white dark:bg-[#181E29] border-slate-200 dark:border-slate-800 hover:bg-[#FFF6F0] dark:hover:bg-[#2A1D17] hover:text-[#E8602E] transition-colors cursor-pointer shadow-2xs"
+            title="Run Pre-Flight Hardware & Network Diagnostics"
+          >
+            <ShieldCheck className="h-3.5 w-3.5 text-[#E8602E]" />
+            <span className="hidden sm:inline">Pre-Flight</span>
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -359,121 +415,149 @@ export default function InterviewPage() {
         )}
       </div>
 
-      {/* ── Scrollable Chat Messages Area ── */}
-      <main
-        ref={containerRef}
-        className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 md:px-8"
-        aria-label="Interview Conversation"
-      >
-        <div className="mx-auto max-w-4xl space-y-4">
-          {/* Session & JD Grounding Banner */}
-          {session?.jd_data ? (
-            <div className="rounded-2xl border border-[#FDBA74]/80 dark:border-[#EA580C]/40 bg-[#FFF7ED]/90 dark:bg-[#2A1D17]/80 p-3.5 text-xs text-[#9A3412] dark:text-[#FDBA74] shadow-2xs space-y-1.5">
-              <div className="flex items-center justify-between font-bold">
-                <div className="flex items-center gap-1.5">
-                  <Target className="h-4 w-4 text-[#E8602E]" />
-                  <span>JD Calibrated: {session.jd_data.job_title} {session.jd_data.company_name ? `(${session.jd_data.company_name})` : ""}</span>
-                </div>
-                <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-[#E8602E] text-white">
-                  {session.jd_data.seniority_level}
-                </span>
-              </div>
-              <p className="text-[11px] opacity-90 leading-relaxed">
-                Questions are strictly grounded in target criteria: {session.jd_data.required_skills?.slice(0, 5).join(", ")}.
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-[#151922]/80 p-3 text-center text-xs text-slate-600 dark:text-slate-400 shadow-2xs">
-              <p className="flex items-center justify-center gap-1.5 font-medium">
-                <Clock className="h-3.5 w-3.5 text-[#E8602E]" />
-                Real-time adaptive difficulty is active. Answers are scored live across concurrency, system design, and STAR framework dimensions.
-              </p>
-            </div>
-          )}
-
-          {/* Render All Chat Messages */}
-          {messages.map((msg, index) => (
-            <ChatBubble
-              key={msg.id || `msg-${index}`}
-              message={msg}
-            />
-          ))}
-
-          {/* AI Typing Indicator with Adaptive Evaluation Note */}
-          {isLoading && (
-            <div className="flex w-full items-start gap-3 py-2">
-              <div
-                aria-hidden="true"
-                className="flex h-9 w-9 shrink-0 select-none items-center justify-center rounded-2xl bg-gradient-to-tr from-[#E8602E] to-[#F17E45] text-white shadow-xs"
-              >
-                <Bot className="h-5 w-5" />
-              </div>
-              <div className="flex flex-col space-y-1">
-                <div className="flex items-center gap-1 px-1 text-xs text-slate-500 dark:text-slate-400">
-                  <Sparkles className="h-3 w-3 text-[#E8602E]" />
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">
-                    AscendX Adaptive Engine
-                  </span>
-                  <span className="text-[11px] text-slate-500">evaluating competency matrix & branching...</span>
-                </div>
-                <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-xs border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#181E29] px-4 py-3.5 shadow-2xs">
-                  <span className="h-2 w-2 rounded-full bg-[#E8602E] animate-bounce [animation-delay:-0.3s]" />
-                  <span className="h-2 w-2 rounded-full bg-[#E8602E] animate-bounce [animation-delay:-0.15s]" />
-                  <span className="h-2 w-2 rounded-full bg-[#E8602E] animate-bounce" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Inline Error Message */}
-          {error && (
-            <div className="flex items-center justify-between rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-sm text-rose-600 dark:text-rose-400 shadow-2xs">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span className="font-medium">{error}</span>
-              </div>
-              {lastFailedMessage && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRetry}
-                  disabled={isLoading}
-                  className="shrink-0 gap-1.5 border-rose-500/40 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-500/15"
-                >
-                  <RefreshCw className="h-3 w-3" />
-                  Retry
-                </Button>
-              )}
-            </div>
-          )}
-
-          {/* Bottom scroll marker */}
-          <div ref={bottomRef} className="h-1" />
-        </div>
-      </main>
-
-      {/* ── Fixed Bottom Message Input / Voice Workspace ── */}
-      <div className="bg-white/90 dark:bg-[#151922]/90 border-t border-slate-200/80 dark:border-[#222B3A] backdrop-blur-md">
-        {isVoiceMode ? (
-          <div className="max-w-4xl mx-auto p-3 sm:p-4">
-            <LiveVoiceWorkspace
-              onSendAnswer={handleSendMessage}
-              disabled={isLoading}
-              contextRole={session?.role}
-              onSwitchToTextMode={() => setIsVoiceMode(false)}
-            />
-          </div>
-        ) : (
-          <InterviewInput
-            onSend={handleSendMessage}
-            disabled={isLoading}
-            onToggleVoiceMode={() => setIsVoiceMode(true)}
-            isVoiceMode={isVoiceMode}
-            placeholder="Type your answer... (Press Enter to send, Shift+Enter for new line)"
+      {/* ── Active Interview Body: Dual-Pane High-Tech Console vs Classic Stream Feed ── */}
+      {activeLayout === "dual-pane" ? (
+        <div className="flex-1 overflow-y-auto flex flex-col justify-start">
+          <DualPaneWorkspace
+            sessionRole={session?.role || session?.jd_data?.job_title || "Full Stack AI Engineer"}
+            personaDisplayName={personaDisplayName}
+            latestAiMessage={latestAiMessage}
+            messages={messages}
+            telemetry={telemetry}
+            isLoading={isLoading}
+            onSendMessage={handleSendMessage}
+            tts={tts}
           />
-        )}
-      </div>
+        </div>
+      ) : (
+        <>
+          {/* ── Scrollable Chat Messages Area ── */}
+          <main
+            ref={containerRef}
+            className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 md:px-8"
+            aria-label="Interview Conversation"
+          >
+            <div className="mx-auto max-w-4xl space-y-4">
+              {/* Session & JD Grounding Banner */}
+              {session?.jd_data ? (
+                <div className="rounded-2xl border border-[#FDBA74]/80 dark:border-[#EA580C]/40 bg-[#FFF7ED]/90 dark:bg-[#2A1D17]/80 p-3.5 text-xs text-[#9A3412] dark:text-[#FDBA74] shadow-2xs space-y-1.5">
+                  <div className="flex items-center justify-between font-bold">
+                    <div className="flex items-center gap-1.5">
+                      <Target className="h-4 w-4 text-[#E8602E]" />
+                      <span>JD Calibrated: {session.jd_data.job_title} {session.jd_data.company_name ? `(${session.jd_data.company_name})` : ""}</span>
+                    </div>
+                    <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-[#E8602E] text-white">
+                      {session.jd_data.seniority_level}
+                    </span>
+                  </div>
+                  <p className="text-[11px] opacity-90 leading-relaxed">
+                    Questions are strictly grounded in target criteria: {session.jd_data.required_skills?.slice(0, 5).join(", ")}.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-[#151922]/80 p-3 text-center text-xs text-slate-600 dark:text-slate-400 shadow-2xs">
+                  <p className="flex items-center justify-center gap-1.5 font-medium">
+                    <Clock className="h-3.5 w-3.5 text-[#E8602E]" />
+                    Real-time adaptive difficulty is active. Answers are scored live across concurrency, system design, and STAR framework dimensions.
+                  </p>
+                </div>
+              )}
+
+              {/* Render All Chat Messages */}
+              {messages.map((msg, index) => (
+                <ChatBubble
+                  key={msg.id || `msg-${index}`}
+                  message={msg}
+                />
+              ))}
+
+              {/* AI Typing Indicator with Adaptive Evaluation Note */}
+              {isLoading && (
+                <div className="flex w-full items-start gap-3 py-2">
+                  <div
+                    aria-hidden="true"
+                    className="flex h-9 w-9 shrink-0 select-none items-center justify-center rounded-2xl bg-gradient-to-tr from-[#E8602E] to-[#F17E45] text-white shadow-xs"
+                  >
+                    <Bot className="h-5 w-5" />
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <div className="flex items-center gap-1 px-1 text-xs text-slate-500 dark:text-slate-400">
+                      <Sparkles className="h-3 w-3 text-[#E8602E]" />
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        AscendX Adaptive Engine
+                      </span>
+                      <span className="text-[11px] text-slate-500">evaluating competency matrix & branching...</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-xs border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#181E29] px-4 py-3.5 shadow-2xs">
+                      <span className="h-2 w-2 rounded-full bg-[#E8602E] animate-bounce [animation-delay:-0.3s]" />
+                      <span className="h-2 w-2 rounded-full bg-[#E8602E] animate-bounce [animation-delay:-0.15s]" />
+                      <span className="h-2 w-2 rounded-full bg-[#E8602E] animate-bounce" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Inline Error Message */}
+              {error && (
+                <div className="flex items-center justify-between rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-sm text-rose-600 dark:text-rose-400 shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span className="font-medium">{error}</span>
+                  </div>
+                  {lastFailedMessage && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRetry}
+                      disabled={isLoading}
+                      className="shrink-0 gap-1.5 border-rose-500/40 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-500/15"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      Retry
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {/* Bottom scroll marker */}
+              <div ref={bottomRef} className="h-1" />
+            </div>
+          </main>
+
+          {/* ── Fixed Bottom Message Input / Voice Workspace (Stream layout) ── */}
+          <div className="bg-white/90 dark:bg-[#151922]/90 border-t border-slate-200/80 dark:border-[#222B3A] backdrop-blur-md">
+            {isVoiceMode ? (
+              <div className="max-w-4xl mx-auto p-3 sm:p-4">
+                <LiveVoiceWorkspace
+                  onSendAnswer={handleSendMessage}
+                  disabled={isLoading}
+                  contextRole={session?.role}
+                  onSwitchToTextMode={() => setIsVoiceMode(false)}
+                />
+              </div>
+            ) : (
+              <InterviewInput
+                onSend={handleSendMessage}
+                disabled={isLoading}
+                onToggleVoiceMode={() => setIsVoiceMode(true)}
+                isVoiceMode={isVoiceMode}
+                placeholder="Type your answer... (Press Enter to send, Shift+Enter for new line)"
+              />
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── Automated Pre-Flight Check Diagnostic Modal ── */}
+      <PreFlightModal
+        isOpen={showPreFlightModal}
+        sessionRole={session?.role || "Software Engineering"}
+        interviewType={session?.type || "Technical"}
+        defaultAudioOnly={!isVoiceMode}
+        onProceed={handlePreFlightProceed}
+        onClose={() => setShowPreFlightModal(false)}
+      />
     </div>
   );
 }

@@ -20,9 +20,11 @@ import {
   FileText,
   Radio,
   Zap,
+  ShieldCheck,
 } from "lucide-react";
 import { PERSONAS } from "@/types/persona";
 import type { PersonaId } from "@/types/persona";
+import PreFlightModal from "@/components/interview/PreFlightModal";
 
 export interface MockInterviewsViewProps {
   initialSessions?: Array<{
@@ -115,6 +117,7 @@ export default function MockInterviewsView({
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
   const [isAdaptiveEnabled, setIsAdaptiveEnabled] = useState(true);
   const [isLaunching, setIsLaunching] = useState(false);
+  const [showPreFlightModal, setShowPreFlightModal] = useState(false);
 
   // History filters
   const [searchFilter, setSearchFilter] = useState("");
@@ -218,14 +221,26 @@ export default function MockInterviewsView({
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => onSwitchTab?.("resume-grounding")}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white dark:bg-[#1C2230] border border-slate-200/80 dark:border-slate-800 hover:border-[#E87A42] text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
-            >
-              <FileText className="w-3.5 h-3.5 text-[#E87A42]" />
-              <span>Ground with My Resume / JD</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowPreFlightModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white dark:bg-[#1C2230] border border-slate-200/80 dark:border-slate-800 hover:border-[#E87A42] text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                title="Verify microphone, camera, and network bandwidth"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-[#E87A42]" />
+                <span>Pre-Flight Check</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onSwitchTab?.("resume-grounding")}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white dark:bg-[#1C2230] border border-slate-200/80 dark:border-slate-800 hover:border-[#E87A42] text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+              >
+                <FileText className="w-3.5 h-3.5 text-[#E87A42]" />
+                <span>Ground with My Resume / JD</span>
+              </button>
+            </div>
           </div>
 
           {/* Role Preset Track Cards */}
@@ -540,6 +555,19 @@ export default function MockInterviewsView({
           )}
         </div>
       </div>
+
+      {/* ── Pre-Flight Diagnostic Modal ── */}
+      <PreFlightModal
+        isOpen={showPreFlightModal}
+        sessionRole={currentPreset?.title || "Senior Full-Stack"}
+        interviewType="Technical"
+        defaultAudioOnly={!isVoiceEnabled}
+        onProceed={(results) => {
+          setShowPreFlightModal(false);
+          handleLaunch();
+        }}
+        onClose={() => setShowPreFlightModal(false)}
+      />
     </div>
   );
 }

@@ -51,10 +51,25 @@ export interface NormalizedUser {
   [key: string]: any;
 }
 
+export interface UploadedResumeState {
+  data: any;
+  filename: string;
+  fileName?: string;
+  url?: string | null;
+  parsedAt?: string | null;
+  headline?: string | null;
+  summary?: string | null;
+  skills?: string[] | null;
+  rawText?: string | null;
+  [key: string]: any;
+}
+
 export interface AuthContextType {
   user: User | NormalizedUser | null;
   session: Session | null;
   isLoading: boolean;
+  uploadedResume: UploadedResumeState | null;
+  setUploadedResume: (resume: UploadedResumeState | null) => void;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<boolean>;
   updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
@@ -90,6 +105,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const isSigningOutRef = useRef(false);
+
+  // Global Unified Resume State Store
+  const [uploadedResume, setUploadedResumeState] = useState<UploadedResumeState | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("ascendx_uploaded_resume");
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    return null;
+  });
+
+  const setUploadedResume = useCallback((resume: UploadedResumeState | null) => {
+    setUploadedResumeState(resume);
+    if (typeof window !== "undefined") {
+      try {
+        if (resume) {
+          localStorage.setItem("ascendx_uploaded_resume", JSON.stringify(resume));
+        } else {
+          localStorage.removeItem("ascendx_uploaded_resume");
+        }
+      } catch {}
+    }
+  }, []);
+
+  // Synchronize uploadedResume whenever user profile changes
+  useEffect(() => {
+    const resume = (user as any)?.resume_data || (user as any)?.user_metadata?.resume_data;
+    if (resume) {
+      const filename =
+        (user as any)?.resume_filename ||
+        (user as any)?.user_metadata?.resume_filename ||
+        "Candidate_Resume.pdf";
+      const url =
+        (user as any)?.resume_url || (user as any)?.user_metadata?.resume_url || null;
+      const parsedAt =
+        (user as any)?.resume_parsed_at ||
+        (user as any)?.user_metadata?.resume_parsed_at ||
+        null;
+      const constructed: UploadedResumeState = {
+        ...resume,
+        data: resume,
+        filename,
+        fileName: filename,
+        url,
+        parsedAt,
+        headline: resume.headline || (user as any)?.target_role || null,
+        skills: resume.skills || [],
+      };
+      setUploadedResumeState(constructed);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("ascendx_uploaded_resume", JSON.stringify(constructed));
+        } catch {}
+      }
+    }
+  }, [user]);
 
   // Synchronize user to public.users table and local persistence
   const syncUser = useCallback(
@@ -354,6 +426,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // 1. Update local state & storage immediately
       setUser(updatedUserPayload);
+      if (updates.resume_data) {
+        const filename = updates.resume_filename || "Candidate_Resume.pdf";
+        const constructed: UploadedResumeState = {
+          ...updates.resume_data,
+          data: updates.resume_data,
+          filename,
+          fileName: filename,
+          url: updates.resume_url || null,
+          parsedAt: updates.resume_parsed_at || new Date().toISOString(),
+          headline: updates.resume_data.headline || updates.target_role || null,
+          skills: updates.resume_data.skills || [],
+        };
+        setUploadedResumeState(constructed);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("ascendx_uploaded_resume", JSON.stringify(constructed));
+          } catch {}
+        }
+      }
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem("sb-mock-user", JSON.stringify(updatedUserPayload));
@@ -594,6 +685,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") {
       try {
         localStorage.removeItem("sb-mock-user");
+        localStorage.removeItem("ascendx_uploaded_resume");
         // Clear any other Supabase or auth related items in storage
         Object.keys(localStorage).forEach((key) => {
           if (key.startsWith("sb-") || key.includes("supabase")) {
@@ -607,6 +699,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(null);
     setSession(null);
+    setUploadedResumeState(null);
 
     // 2. Invoke Supabase signOut
     try {
@@ -625,6 +718,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     session,
     isLoading,
+    uploadedResume,
+    setUploadedResume,
     signOut,
     deleteAccount,
     updatePassword,
@@ -644,6 +739,8 @@ export function useAuth(): AuthContextType {
       user: null,
       session: null,
       isLoading: true,
+      uploadedResume: null,
+      setUploadedResume: () => {},
       signOut: async () => {},
       deleteAccount: async () => false,
       updatePassword: async () => ({ success: false, error: 'Not initialized' }),
@@ -654,4 +751,9 @@ export function useAuth(): AuthContextType {
     };
   }
   return context;
+}
+
+export function useResume() {
+  const { uploadedResume, setUploadedResume } = useAuth();
+  return { uploadedResume, setUploadedResume };
 }

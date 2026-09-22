@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Mic, Search, ChevronDown, Info, ArrowDown, History, Sparkles } from "lucide-react";
+import { Mic, Search, ChevronDown, Info, ArrowDown, History, Sparkles, ShieldCheck } from "lucide-react";
 import PersonaSelector from "@/components/dashboard/PersonaSelector";
 import ResumeJDCard from "@/components/dashboard/ResumeJDCard";
 import SkillReadinessRadar from "@/components/dashboard/SkillReadinessRadar";
@@ -18,6 +18,7 @@ import WeaknessHeatmapCard from "@/components/dashboard/WeaknessHeatmapCard";
 import ReadinessScoreWidget from "@/components/dashboard/ReadinessScoreWidget";
 import DailyDrillWidget from "@/components/dashboard/DailyDrillWidget";
 import AsyncCoachNotesCard from "@/components/dashboard/AsyncCoachNotesCard";
+import PreFlightModal from "@/components/interview/PreFlightModal";
 import { useAuth } from "@/context/AuthContext";
 import type { PersonaId } from "@/types/persona";
 
@@ -48,6 +49,7 @@ export default function DashboardOverview({
   const [isAdaptiveOn, setIsAdaptiveOn] = useState(true);
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [isLaunching, setIsLaunching] = useState(false);
+  const [showPreFlightModal, setShowPreFlightModal] = useState(false);
 
   const userDisplayName = user?.email ? user.email.split("@")[0] : "Candidate";
 
@@ -78,24 +80,37 @@ export default function DashboardOverview({
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
 
-          <div className="flex items-center gap-2 bg-white/90 dark:bg-[#1C2230]/90 px-3.5 py-1.5 rounded-full border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
-            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-              Voice Active
-            </span>
+          <div className="flex items-center gap-2">
+            {/* Pre-Flight Diagnostic Button */}
             <button
               type="button"
-              onClick={() => setIsVoiceActive(!isVoiceActive)}
-              className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out focus:outline-hidden cursor-pointer ${
-                isVoiceActive ? "bg-[#E87A42]" : "bg-slate-300 dark:bg-slate-700"
-              }`}
-              aria-label="Toggle Voice Active"
+              onClick={() => setShowPreFlightModal(true)}
+              className="flex items-center gap-1.5 bg-white/90 dark:bg-[#1C2230]/90 px-3 py-1.5 rounded-full border border-slate-200/80 dark:border-slate-700/80 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-[#E87A42] hover:border-[#E87A42]/50 transition-colors shadow-2xs cursor-pointer"
+              title="Verify camera, microphone, and network speed"
             >
-              <div
-                className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
-                  isVoiceActive ? "translate-x-4" : "translate-x-0"
-                }`}
-              />
+              <ShieldCheck className="w-3.5 h-3.5 text-[#E87A42]" />
+              <span>Pre-Flight Diagnostic</span>
             </button>
+
+            <div className="flex items-center gap-2 bg-white/90 dark:bg-[#1C2230]/90 px-3.5 py-1.5 rounded-full border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                Voice Active
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsVoiceActive(!isVoiceActive)}
+                className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out focus:outline-hidden cursor-pointer ${
+                  isVoiceActive ? "bg-[#E87A42]" : "bg-slate-300 dark:bg-slate-700"
+                }`}
+                aria-label="Toggle Voice Active"
+              >
+                <div
+                  className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                    isVoiceActive ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -349,6 +364,19 @@ export default function DashboardOverview({
           </div>
         )}
       </div>
+
+      {/* ── Pre-Flight Diagnostic Modal ── */}
+      <PreFlightModal
+        isOpen={showPreFlightModal}
+        sessionRole="Senior Full-Stack (L5/Staff)"
+        interviewType="Technical & Behavioral"
+        defaultAudioOnly={!isVoiceActive}
+        onProceed={(results) => {
+          setShowPreFlightModal(false);
+          handleLaunchInterview();
+        }}
+        onClose={() => setShowPreFlightModal(false)}
+      />
     </div>
   );
 }

@@ -124,9 +124,13 @@ export default function VoiceCoachPage() {
     tts.speak(text);
   };
 
-  const handleSendSpokenAnswer = (text: string) => {
+  const handleSendSpokenAnswer = (text: string, durationSeconds?: number) => {
+    const formattedDuration = durationSeconds !== undefined
+      ? `${Math.floor(durationSeconds / 60).toString().padStart(2, "0")}:${(durationSeconds % 60).toString().padStart(2, "0")}`
+      : undefined;
+
     setUserSpokenAnswers((prev) => [
-      { text, timestamp: new Date() },
+      { text, timestamp: new Date(), duration: formattedDuration },
       ...prev,
     ]);
   };
@@ -393,7 +397,14 @@ export default function VoiceCoachPage() {
                           <span className="font-semibold text-orange-600 dark:text-orange-400">
                             Take #{userSpokenAnswers.length - index}
                           </span>
-                          <span>{item.timestamp.toLocaleTimeString()}</span>
+                          <div className="flex items-center gap-2">
+                            {item.duration && (
+                              <span className="font-mono text-slate-600 dark:text-slate-300 font-bold bg-slate-200/80 dark:bg-slate-800 px-2 py-0.5 rounded-full text-[10px] border border-slate-300/50 dark:border-slate-700/50">
+                                {item.duration}
+                              </span>
+                            )}
+                            <span>{item.timestamp.toLocaleTimeString()}</span>
+                          </div>
                         </div>
                         <p className="text-slate-800 dark:text-slate-200 leading-relaxed">
                           {item.text}

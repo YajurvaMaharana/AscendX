@@ -30,7 +30,7 @@ import { RealtimeWaveformEqualizer } from "./RealtimeWaveformEqualizer";
 import { cn } from "@/lib/utils";
 
 interface LiveVoiceWorkspaceProps {
-  onSendAnswer: (text: string) => Promise<void> | void;
+  onSendAnswer: (text: string, durationSeconds?: number) => Promise<void> | void;
   disabled?: boolean;
   contextRole?: string;
   onSwitchToTextMode?: () => void;
@@ -119,7 +119,7 @@ export function LiveVoiceWorkspace({
 
     setIsSubmitting(true);
     try {
-      await onSendAnswer(textToSubmit);
+      await onSendAnswer(textToSubmit, durationSeconds);
       discardAndReset();
     } catch (err) {
       console.error("Failed to submit spoken answer:", err);
@@ -252,25 +252,35 @@ export function LiveVoiceWorkspace({
       <div className="py-4 space-y-4">
         {/* State 1: IDLE */}
         {recordingState === "idle" && (
-          <div className="flex flex-col items-center justify-center py-6 px-4 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-center">
-            <div className="relative mb-3">
-              <button
-                type="button"
-                id="start-voice-recording-button"
-                onClick={startRecording}
-                disabled={disabled}
-                aria-label="Start recording speech"
-                className="group flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-[#E8602E] to-[#F17E45] text-white shadow-lg shadow-orange-500/20 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Mic className="h-7 w-7 transition-transform group-hover:scale-110" />
-              </button>
+          <div className="space-y-4">
+            {/* Standby Waveform Calibration Preview with Duration Counter */}
+            <RealtimeWaveformEqualizer
+              audioLevel={0}
+              isRecording={false}
+              isPaused={false}
+              durationSeconds={0}
+            />
+
+            <div className="flex flex-col items-center justify-center py-6 px-4 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-center">
+              <div className="relative mb-3">
+                <button
+                  type="button"
+                  id="start-voice-recording-button"
+                  onClick={startRecording}
+                  disabled={disabled}
+                  aria-label="Start recording speech"
+                  className="group flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-[#E8602E] to-[#F17E45] text-white shadow-lg shadow-orange-500/20 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Mic className="h-7 w-7 transition-transform group-hover:scale-110" />
+                </button>
+              </div>
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
+                Click to Start Speaking Your Answer
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md">
+                Speak naturally as you would in a real live interview. AscendX will stream your transcription in real-time.
+              </p>
             </div>
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
-              Click to Start Speaking Your Answer
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md">
-              Speak naturally as you would in a real live interview. AscendX will stream your transcription in real-time.
-            </p>
           </div>
         )}
 
@@ -281,6 +291,8 @@ export function LiveVoiceWorkspace({
             <RealtimeWaveformEqualizer
               audioLevel={audioLevel}
               isRecording={recordingState === "recording"}
+              isPaused={recordingState === "paused"}
+              durationSeconds={durationSeconds}
             />
 
             {/* Status & Timer */}

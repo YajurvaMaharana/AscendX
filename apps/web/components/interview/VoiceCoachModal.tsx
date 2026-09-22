@@ -13,12 +13,16 @@ interface VoiceCoachModalProps {
 
 export function VoiceCoachModal({ isOpen, onClose }: VoiceCoachModalProps) {
   const router = useRouter();
-  const [recordedTranscripts, setRecordedTranscripts] = useState<string[]>([]);
+  const [recordedTranscripts, setRecordedTranscripts] = useState<Array<{ text: string; duration?: string }>>([]);
 
   if (!isOpen) return null;
 
-  const handleSendSpokenAnswer = (text: string) => {
-    setRecordedTranscripts((prev) => [text, ...prev]);
+  const handleSendSpokenAnswer = (text: string, durationSeconds?: number) => {
+    const formattedDuration = durationSeconds !== undefined
+      ? `${Math.floor(durationSeconds / 60).toString().padStart(2, "0")}:${(durationSeconds % 60).toString().padStart(2, "0")}`
+      : undefined;
+
+    setRecordedTranscripts((prev) => [{ text, duration: formattedDuration }, ...prev]);
   };
 
   const handleStartCalibratedInterview = () => {
@@ -74,16 +78,23 @@ export function VoiceCoachModal({ isOpen, onClose }: VoiceCoachModalProps) {
                 Recent Spoken Transcripts Practice ({recordedTranscripts.length})
               </h4>
               <div className="space-y-2">
-                {recordedTranscripts.map((t, idx) => (
+                {recordedTranscripts.map((item, idx) => (
                   <div
                     key={idx}
                     className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 text-xs text-slate-800 dark:text-slate-200 space-y-1"
                   >
                     <div className="flex items-center justify-between text-[11px] text-slate-400">
                       <span>Take #{recordedTranscripts.length - idx}</span>
-                      <span>{t.split(" ").length} words</span>
+                      <div className="flex items-center gap-2">
+                        {item.duration && (
+                          <span className="font-mono text-slate-600 dark:text-slate-300 font-bold bg-slate-200/80 dark:bg-slate-800 px-2 py-0.5 rounded-full text-[10px]">
+                            {item.duration}
+                          </span>
+                        )}
+                        <span>{item.text.split(" ").length} words</span>
+                      </div>
                     </div>
-                    <p className="leading-relaxed">{t}</p>
+                    <p className="leading-relaxed">{item.text}</p>
                   </div>
                 ))}
               </div>
