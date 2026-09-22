@@ -385,11 +385,29 @@ export default function PreFlightDiagnostic({
   useEffect(() => {
     initMediaStream();
     runNetworkDiagnostic();
+    const currentVideoEl = videoRef.current;
+
+    const handleGlobalTermination = () => {
+      if (activeStreamRef.current) {
+        activeStreamRef.current.getTracks().forEach((track) => track.stop());
+        activeStreamRef.current = null;
+      }
+      if (currentVideoEl) {
+        currentVideoEl.srcObject = null;
+      }
+    };
+
+    window.addEventListener("ascendx:media-session-terminate", handleGlobalTermination);
 
     return () => {
+      window.removeEventListener("ascendx:media-session-terminate", handleGlobalTermination);
       // Clean teardown on unmount
       if (activeStreamRef.current) {
         activeStreamRef.current.getTracks().forEach((track) => track.stop());
+        activeStreamRef.current = null;
+      }
+      if (currentVideoEl) {
+        currentVideoEl.srcObject = null;
       }
       if (animFrameRef.current) {
         cancelAnimationFrame(animFrameRef.current);

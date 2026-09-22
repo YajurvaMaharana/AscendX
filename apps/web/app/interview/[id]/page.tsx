@@ -32,6 +32,7 @@ import { AdaptiveTelemetryHUD } from "@/components/interview/AdaptiveTelemetryHU
 import { InterviewerAudioPlayer } from "@/components/interview/InterviewerAudioPlayer";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { cn } from "@/lib/utils";
+import { terminateAllActiveMediaStreams } from "@/lib/utils/media-cleanup";
 import PreFlightModal from "@/components/interview/PreFlightModal";
 import type { PreFlightCheckResults } from "@/components/interview/PreFlightDiagnostic";
 import type { SessionAdaptiveTelemetry } from "@/lib/services/ai-engine/adaptive-engine.service";
@@ -75,6 +76,7 @@ export default function InterviewPage() {
   const [telemetry, setTelemetry] = React.useState<SessionAdaptiveTelemetry | null>(null);
   const [isVoiceMode, setIsVoiceMode] = React.useState(false);
   const [activeLayout, setActiveLayout] = React.useState<"dual-pane" | "stream">("dual-pane");
+  const [isImmersiveMode, setIsImmersiveMode] = React.useState<boolean>(true);
   const [messages, setMessages] = React.useState<ChatMessage[]>([
     {
       id: "initial-greeting",
@@ -292,132 +294,155 @@ export default function InterviewPage() {
   };
 
   const handleEndSession = () => {
+    // 1. Explicitly halt text-to-speech audio synthesis
     tts.stop();
+
+    // 2. Terminate all active camera and microphone tracks & release hardware indicators
+    terminateAllActiveMediaStreams();
+
+    // 3. Navigate to feedback report
     const targetUrl = `/interview/${encodeURIComponent(interviewId)}/feedback`;
     router.push(targetUrl);
   };
 
+  // Teardown all media streams upon unmount or page exit
+  React.useEffect(() => {
+    return () => {
+      terminateAllActiveMediaStreams();
+    };
+  }, []);
+
   return (
-    <div className="flex h-screen w-full flex-col bg-[#ECEEF2] dark:bg-[#0B0F15] transition-colors duration-300 overflow-hidden">
-      {/* ── Top Session Header ── */}
-      <header className="flex shrink-0 items-center justify-between border-b border-slate-200/80 dark:border-[#222B3A] bg-white/80 dark:bg-[#151922]/80 px-4 py-3 backdrop-blur-md sm:px-6">
-        <div className="flex items-center gap-3">
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-          >
-            <Link href="/dashboard">
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </Link>
-          </Button>
-          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-[#E8602E] to-[#F17E45] text-white shadow-2xs">
-              <Bot className="h-4 w-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm font-bold sm:text-base text-slate-900 dark:text-white">
-                  {session?.role ? `${session.role} Interview` : "Adaptive AI Mock Interview"}
-                </h1>
-                <span className="inline-flex items-center rounded-full bg-[#FFF7ED] dark:bg-[#2A1D17] border border-[#FDBA74]/80 dark:border-[#EA580C]/40 px-2.5 py-0.5 text-[10px] font-bold text-[#C2410C] dark:text-[#FB923C]">
-                  {session?.difficulty ? `${session.difficulty.toUpperCase()}` : "ADAPTIVE"}
-                </span>
+    <div className="flex h-screen w-full flex-col bg-[#0B0F15] text-slate-100 transition-colors duration-300 overflow-hidden">
+      {/* ── Top Session Header (Hidden when in immersive Dual-Pane mode, accessible in classic stream mode or toggleable) ── */}
+      {(!isImmersiveMode || activeLayout === "stream") && (
+        <header className="flex shrink-0 items-center justify-between border-b border-slate-200/80 dark:border-[#222B3A] bg-white/80 dark:bg-[#151922]/80 px-4 py-2.5 backdrop-blur-md sm:px-6">
+          <div className="flex items-center gap-3">
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            >
+              <Link href="/dashboard">
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Dashboard</span>
+              </Link>
+            </Button>
+            <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-[#E8602E] to-[#F17E45] text-white shadow-2xs">
+                <Bot className="h-4 w-4" />
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Session ID: <span className="font-mono">{interviewId}</span>
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-sm font-bold sm:text-base text-slate-900 dark:text-white">
+                    {session?.role ? `${session.role} Interview` : "Adaptive AI Mock Interview"}
+                  </h1>
+                  <span className="inline-flex items-center rounded-full bg-[#FFF7ED] dark:bg-[#2A1D17] border border-[#FDBA74]/80 dark:border-[#EA580C]/40 px-2.5 py-0.5 text-[10px] font-bold text-[#C2410C] dark:text-[#FB923C]">
+                    {session?.difficulty ? `${session.difficulty.toUpperCase()}` : "ADAPTIVE"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Session ID: <span className="font-mono">{interviewId}</span>
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          {/* Layout switcher: Dual-Pane vs Stream */}
-          <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700">
-            <button
-              type="button"
-              onClick={() => setActiveLayout("dual-pane")}
-              className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
-                activeLayout === "dual-pane"
-                  ? "bg-gradient-to-r from-[#E8602E] to-[#F17E45] text-white shadow-2xs"
-                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
-              )}
-              title="Interactive Dual-Pane Mock Interview Workspace"
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Dual-Pane</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveLayout("stream")}
-              className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
-                activeLayout === "stream"
-                  ? "bg-white dark:bg-[#181E29] text-slate-900 dark:text-white shadow-2xs"
-                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
-              )}
-              title="Classic Conversation Feed"
-            >
-              <MessageSquare className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Feed</span>
-            </button>
-          </div>
-
-          <div className="hidden items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 md:flex bg-white/80 dark:bg-[#1C2230]/80 px-2.5 py-1 rounded-full border border-slate-200/80 dark:border-slate-700/80">
-            <Zap className="h-3.5 w-3.5 text-[#E87A42]" />
-            <span>Adaptive Engine Live</span>
-          </div>
-
-          {/* Pre-Flight Diagnostic Trigger */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowPreFlightModal(true)}
-            className="gap-1.5 text-xs font-semibold rounded-xl bg-white dark:bg-[#181E29] border-slate-200 dark:border-slate-800 hover:bg-[#FFF6F0] dark:hover:bg-[#2A1D17] hover:text-[#E8602E] transition-colors cursor-pointer shadow-2xs"
-            title="Run Pre-Flight Hardware & Network Diagnostics"
-          >
-            <ShieldCheck className="h-3.5 w-3.5 text-[#E8602E]" />
-            <span className="hidden sm:inline">Pre-Flight</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleEndSession}
-            className="gap-1.5 text-xs font-semibold rounded-xl bg-white dark:bg-[#181E29] border-slate-200 dark:border-slate-800 hover:bg-[#FFF6F0] dark:hover:bg-[#2A1D17] hover:text-[#E8602E] transition-colors cursor-pointer shadow-2xs"
-          >
-            <Award className="h-3.5 w-3.5 text-[#E8602E]" />
-            <span>End & View Feedback</span>
-          </Button>
-        </div>
-      </header>
-
-      {/* ── Real-Time Adaptive Difficulty & Telemetry HUD ── */}
-      <div className="px-4 sm:px-6 md:px-8 pt-3 pb-1 max-w-4xl mx-auto w-full space-y-2">
-        <AdaptiveTelemetryHUD telemetry={telemetry} />
-
-        {/* Visible Adaptation Reason Notification Banner */}
-        {telemetry?.branchDescription && (
-          <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent dark:from-amber-500/15 dark:via-orange-500/15 border border-amber-500/30 dark:border-amber-500/20 text-xs text-amber-900 dark:text-amber-200 shadow-2xs animate-in fade-in slide-in-from-top-1 duration-300">
-            <Sparkles className="h-4 w-4 shrink-0 text-[#E8602E] animate-pulse" />
-            <div className="flex-1 font-medium leading-relaxed">
-              <span className="font-extrabold mr-1 text-[#E8602E]">AI Adaptation Rationale:</span>
-              <span>{telemetry.branchDescription}</span>
+          <div className="flex items-center gap-2">
+            {/* Layout switcher: Dual-Pane vs Stream */}
+            <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveLayout("dual-pane");
+                  setIsImmersiveMode(true);
+                }}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                  activeLayout === "dual-pane"
+                    ? "bg-gradient-to-r from-[#E8602E] to-[#F17E45] text-white shadow-2xs"
+                    : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                )}
+                title="Interactive Dual-Pane Mock Interview Workspace"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Dual-Pane</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveLayout("stream");
+                  setIsImmersiveMode(false);
+                }}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                  activeLayout === "stream"
+                    ? "bg-white dark:bg-[#181E29] text-slate-900 dark:text-white shadow-2xs"
+                    : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                )}
+                title="Classic Conversation Feed"
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Feed</span>
+              </button>
             </div>
-            <span className="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/80 dark:bg-[#1C2230] text-amber-700 dark:text-amber-300 font-bold border border-amber-500/20 shadow-2xs">
-              Live Shift
-            </span>
+
+            <div className="hidden items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 md:flex bg-white/80 dark:bg-[#1C2230]/80 px-2.5 py-1 rounded-full border border-slate-200/80 dark:border-slate-700/80">
+              <Zap className="h-3.5 w-3.5 text-[#E87A42]" />
+              <span>Adaptive Engine Live</span>
+            </div>
+
+            {/* Pre-Flight Diagnostic Trigger */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowPreFlightModal(true)}
+              className="gap-1.5 text-xs font-semibold rounded-xl bg-white dark:bg-[#181E29] border-slate-200 dark:border-slate-800 hover:bg-[#FFF6F0] dark:hover:bg-[#2A1D17] hover:text-[#E8602E] transition-colors cursor-pointer shadow-2xs"
+              title="Run Pre-Flight Hardware & Network Diagnostics"
+            >
+              <ShieldCheck className="h-3.5 w-3.5 text-[#E8602E]" />
+              <span className="hidden sm:inline">Pre-Flight</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleEndSession}
+              className="gap-1.5 text-xs font-semibold rounded-xl bg-white dark:bg-[#181E29] border-slate-200 dark:border-slate-800 hover:bg-[#FFF6F0] dark:hover:bg-[#2A1D17] hover:text-[#E8602E] transition-colors cursor-pointer shadow-2xs"
+            >
+              <Award className="h-3.5 w-3.5 text-[#E8602E]" />
+              <span>End & View Feedback</span>
+            </Button>
           </div>
-        )}
-      </div>
+        </header>
+      )}
+
+      {/* ── Real-Time Adaptive Difficulty & Telemetry HUD (Shown only in classic stream mode) ── */}
+      {(!isImmersiveMode || activeLayout === "stream") && (
+        <div className="px-4 sm:px-6 md:px-8 pt-3 pb-1 max-w-4xl mx-auto w-full space-y-2">
+          <AdaptiveTelemetryHUD telemetry={telemetry} />
+
+          {/* Visible Adaptation Reason Notification Banner */}
+          {telemetry?.branchDescription && (
+            <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent dark:from-amber-500/15 dark:via-orange-500/15 border border-amber-500/30 dark:border-amber-500/20 text-xs text-amber-900 dark:text-amber-200 shadow-2xs animate-in fade-in slide-in-from-top-1 duration-300">
+              <Sparkles className="h-4 w-4 shrink-0 text-[#E8602E] animate-pulse" />
+              <div className="flex-1 font-medium leading-relaxed">
+                <span className="font-extrabold mr-1 text-[#E8602E]">AI Adaptation Rationale:</span>
+                <span>{telemetry.branchDescription}</span>
+              </div>
+              <span className="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/80 dark:bg-[#1C2230] text-amber-700 dark:text-amber-300 font-bold border border-amber-500/20 shadow-2xs">
+                Live Shift
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Active Interview Body: Dual-Pane High-Tech Console vs Classic Stream Feed ── */}
       {activeLayout === "dual-pane" ? (
-        <div className="flex-1 overflow-y-auto flex flex-col justify-start">
+        <div className="flex-1 h-full w-full flex flex-col justify-start overflow-hidden">
           <DualPaneWorkspace
             sessionRole={session?.role || session?.jd_data?.job_title || "Full Stack AI Engineer"}
             personaDisplayName={personaDisplayName}
@@ -426,6 +451,9 @@ export default function InterviewPage() {
             telemetry={telemetry}
             isLoading={isLoading}
             onSendMessage={handleSendMessage}
+            onEndSession={handleEndSession}
+            isImmersive={isImmersiveMode}
+            onToggleImmersive={() => setIsImmersiveMode(!isImmersiveMode)}
             tts={tts}
           />
         </div>

@@ -24,9 +24,11 @@ import {
   Flame,
   ShieldAlert,
   Braces,
+  Award,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { stopMediaStream, stopElementMediaStream } from "@/lib/utils/media-cleanup";
 import type { ChatMessage } from "@/components/interview/ChatBubble";
 import type { SessionAdaptiveTelemetry } from "@/lib/services/ai-engine/adaptive-engine.service";
 
@@ -38,6 +40,9 @@ interface DualPaneWorkspaceProps {
   telemetry?: SessionAdaptiveTelemetry | null;
   isLoading: boolean;
   onSendMessage: (text: string) => Promise<void> | void;
+  onEndSession?: () => void;
+  isImmersive?: boolean;
+  onToggleImmersive?: () => void;
   tts: {
     isSpeaking: boolean;
     isMuted: boolean;
@@ -55,6 +60,9 @@ export function DualPaneWorkspace({
   telemetry,
   isLoading,
   onSendMessage,
+  onEndSession,
+  isImmersive = true,
+  onToggleImmersive,
   tts,
 }: DualPaneWorkspaceProps) {
   // Media controls state
@@ -65,6 +73,7 @@ export function DualPaneWorkspace({
 
   // Video streams
   const userVideoRef = useRef<HTMLVideoElement | null>(null);
+  const activeStreamRef = useRef<MediaStream | null>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
 
   // Code assessment editor state
@@ -76,18 +85,61 @@ export function DualPaneWorkspace({
   const [userLiveTranscript, setUserLiveTranscript] = useState<string>("");
   const recognitionRef = useRef<any>(null);
 
+  // Explicit termination method for all local media tracks
+  const terminateLocalMediaTracks = useCallback(() => {
+    // 1. Terminate all tracks on activeStreamRef
+    if (activeStreamRef.current) {
+      stopMediaStream(activeStreamRef.current);
+      activeStreamRef.current = null;
+    }
+
+    // 2. Clear video element srcObject and halt any attached streams
+    if (userVideoRef.current) {
+      stopElementMediaStream(userVideoRef.current);
+    }
+
+    // 3. Stop speech recognition
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+        recognitionRef.current.stop();
+      } catch {}
+      recognitionRef.current = null;
+    }
+    setIsRecognizing(false);
+  }, []);
+
+  // Listen for global session termination events or component unmount
+  useEffect(() => {
+    const handleGlobalTermination = () => {
+      terminateLocalMediaTracks();
+    };
+
+    window.addEventListener("ascendx:media-session-terminate", handleGlobalTermination);
+    window.addEventListener("beforeunload", handleGlobalTermination);
+
+    return () => {
+      window.removeEventListener("ascendx:media-session-terminate", handleGlobalTermination);
+      window.removeEventListener("beforeunload", handleGlobalTermination);
+      terminateLocalMediaTracks();
+    };
+  }, [terminateLocalMediaTracks]);
+
   // Initialize camera stream
   useEffect(() => {
     let stream: MediaStream | null = null;
+    const currentVideoEl = userVideoRef.current;
+
     if (userCameraActive) {
       if (navigator?.mediaDevices?.getUserMedia) {
         navigator.mediaDevices
           .getUserMedia({ video: { width: 640, height: 480 }, audio: false })
           .then((s) => {
             stream = s;
+            activeStreamRef.current = s;
             setHasCameraPermission(true);
-            if (userVideoRef.current) {
-              userVideoRef.current.srcObject = s;
+            if (currentVideoEl) {
+              currentVideoEl.srcObject = s;
             }
           })
           .catch((err) => {
@@ -96,16 +148,25 @@ export function DualPaneWorkspace({
           });
       }
     } else {
-      if (userVideoRef.current && userVideoRef.current.srcObject) {
-        const existing = userVideoRef.current.srcObject as MediaStream;
-        existing.getTracks().forEach((track) => track.stop());
-        userVideoRef.current.srcObject = null;
+      if (currentVideoEl) {
+        stopElementMediaStream(currentVideoEl);
+      }
+      if (activeStreamRef.current) {
+        stopMediaStream(activeStreamRef.current);
+        activeStreamRef.current = null;
       }
     }
 
     return () => {
       if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+        stopMediaStream(stream);
+      }
+      if (activeStreamRef.current) {
+        stopMediaStream(activeStreamRef.current);
+        activeStreamRef.current = null;
+      }
+      if (currentVideoEl) {
+        stopElementMediaStream(currentVideoEl);
       }
     };
   }, [userCameraActive]);
@@ -284,31 +345,67 @@ export function DualPaneWorkspace({
   return (
     <div
       id="mock-interview-workspace"
-      className="w-full flex-1 flex flex-col justify-center items-center p-2 sm:p-4 md:p-6"
+      className={cn(
+        "w-full flex-1 flex flex-col justify-start items-center transition-all duration-300",
+        isImmersive ? "p-1.5 sm:p-2.5 md:p-3 h-full max-h-screen" : "p-2 sm:p-4 md:p-6"
+      )}
     >
       {/* ── High-Tech Console Bezel Frame ── */}
-      <div className="w-full max-w-7xl rounded-3xl bg-[#10141D] border border-[#232B3E] shadow-2xl p-3 sm:p-5 md:p-6 relative overflow-hidden backdrop-blur-2xl">
-        {/* Top Console Status Indicators */}
-        <div className="flex items-center justify-between pb-4 border-b border-[#1B2232] text-xs">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[#E8602E] animate-pulse" />
-            <span className="text-slate-400 font-medium tracking-wide uppercase text-[11px]">
-              AscendX Live Assessment Node &bull; {sessionRole}
+      <div
+        className={cn(
+          "w-full rounded-2xl sm:rounded-3xl bg-[#10141D] border border-[#232B3E] shadow-2xl relative overflow-hidden backdrop-blur-2xl flex flex-col",
+          isImmersive
+            ? "max-w-[100vw] h-full flex-1 p-3 sm:p-4 md:p-5"
+            : "max-w-7xl p-3 sm:p-5 md:p-6"
+        )}
+      >
+        {/* Top Streamlined Header Bar with Live Status & End & View Feedback button */}
+        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-[#1B2232] text-xs shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#E8602E] animate-pulse" />
+              <span className="text-slate-200 font-semibold tracking-wide text-xs sm:text-sm">
+                {sessionRole}
+              </span>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#181F2C] border border-[#29354A] text-emerald-400 font-mono text-[11px]">
+              <Radio className="h-3 w-3 animate-pulse" />
+              <span>LIVE INTERVIEW</span>
             </span>
           </div>
-          <div className="flex items-center gap-4 text-slate-400 text-[11px] font-mono">
-            <span className="flex items-center gap-1.5">
-              <Radio className="h-3 w-3 text-emerald-400 animate-pulse" />
-              <span>Low-Latency Dual Mesh</span>
-            </span>
-            <span className="hidden sm:inline px-2 py-0.5 rounded-full bg-[#181F2C] border border-[#29354A] text-amber-400 font-semibold">
-              Live Bi-Directional
-            </span>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            {onToggleImmersive && (
+              <button
+                type="button"
+                onClick={onToggleImmersive}
+                className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#161B26] hover:bg-[#1E2536] border border-[#2A354C] text-slate-400 hover:text-slate-200 text-xs font-medium transition-colors cursor-pointer"
+                title={isImmersive ? "Exit Full-Screen Canvas" : "Enter Full-Screen Canvas"}
+              >
+                <Maximize2 className="h-3.5 w-3.5 text-amber-400" />
+                <span>{isImmersive ? "Standard View" : "Full Screen"}</span>
+              </button>
+            )}
+
+            {onEndSession && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  terminateLocalMediaTracks();
+                  onEndSession();
+                }}
+                className="gap-1.5 px-3 sm:px-4 py-1.5 rounded-xl bg-gradient-to-r from-[#E8602E] via-[#F06A35] to-[#F58245] hover:from-[#DC5420] hover:to-[#E8602E] text-white font-semibold text-xs shadow-md shadow-orange-950/40 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Award className="h-3.5 w-3.5" />
+                <span>End &amp; View Feedback</span>
+              </Button>
+            )}
           </div>
         </div>
 
         {/* ── Main Two-Column Grid ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 pt-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 sm:gap-5 pt-3 sm:pt-4 flex-1 overflow-y-auto">
           {/* ══════════════════════════════════════════════════════════════
               LEFT PANE: Interview & Call + Code Assessment Response Box
           ══════════════════════════════════════════════════════════════ */}
