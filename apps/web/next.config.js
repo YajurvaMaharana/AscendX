@@ -71,30 +71,12 @@ const resolvedSupabaseKey = resolveSupabaseKey();
 const nextConfig = {
   output: 'standalone',
   reactStrictMode: false,
-  experimental: {
-    serverComponentsExternalPackages: ['bun', 'bun:ffi'],
-  },
   env: {
     NEXT_PUBLIC_SUPABASE_URL: resolvedSupabaseUrl,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: resolvedSupabaseKey,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: resolvedSupabaseKey,
   },
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      config.externals = [...(config.externals || []), 'bun', 'bun:ffi'];
-    }
-
-    config.ignoreWarnings = [
-      ...(config.ignoreWarnings || []),
-      { module: /vendor-chunks/ },
-      { file: /vendor-chunks/ },
-      { message: /vendor-chunks/ },
-      { message: /bun/ },
-      /Can't resolve '\.\/vendor-chunks\/bun'/,
-      /Caching failed for pack/,
-      /ENOENT: no such file or directory, lstat '.*vendor-chunks'/,
-    ];
-
+  webpack: (config) => {
     return config;
   },
   async headers() {

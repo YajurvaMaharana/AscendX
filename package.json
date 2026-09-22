@@ -6,10 +6,10 @@
     "apps/web"
   ],
   "scripts": {
-    "build": "npm run build --workspace=apps/web",
-    "start": "npm run start --workspace=apps/web",
-    "dev": "npm run dev --workspace=apps/web",
-    "lint": "npm run lint --workspace=apps/web"
+    "build": "npm --prefix apps/web run build",
+    "start": "npm --prefix apps/web run start",
+    "dev": "npm --prefix apps/web run dev",
+    "lint": "npm --prefix apps/web run lint"
   },
   "dependencies": {
     "@google/genai": "^2.23.0",

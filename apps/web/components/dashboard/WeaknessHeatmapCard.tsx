@@ -78,26 +78,26 @@ export default function WeaknessHeatmapCard() {
   };
 
   return (
-    <div className="w-full border border-slate-100 dark:border-[#242C3B] bg-white dark:bg-[#181E29] rounded-2xl p-4 shadow-sm space-y-4">
+    <div className="w-full border border-slate-100 dark:border-[#242C3B] bg-white dark:bg-[#181E29] rounded-2xl p-3.5 sm:p-4 shadow-xs space-y-3">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-            <Grid className="w-4 h-4" />
+            <Grid className="w-3.5 h-3.5" />
           </div>
           <div>
             <h3 className="text-xs font-bold text-slate-900 dark:text-white tracking-tight">
               Longitudinal Weakness Heatmap & Skill Matrix
             </h3>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+            <p className="text-[9.5px] text-slate-500 dark:text-slate-400">
               Cross-reference historical session scores with competencies across chronological timeline
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-[10px] font-mono">
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500" /> &lt;70</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> 70-84</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> 85+</span>
+        <div className="flex items-center gap-2 text-[9.5px] font-mono">
+          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> &lt;70</span>
+          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> 70-84</span>
+          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> 85+</span>
         </div>
       </div>
 
@@ -105,25 +105,25 @@ export default function WeaknessHeatmapCard() {
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead>
-            <tr className="border-b border-slate-200/60 dark:border-slate-800 text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold">
-              <th className="py-2.5 px-3">Competency / Skill</th>
+            <tr className="border-b border-slate-200/60 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
+              <th className="py-1.5 px-2.5">Competency / Skill</th>
               {sessions.map((s) => (
-                <th key={s} className="py-2.5 px-2 text-center font-mono">{s}</th>
+                <th key={s} className="py-1.5 px-1.5 text-center font-mono">{s}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
             {matrixData.map((row, rIdx) => (
               <tr key={rIdx} className="hover:bg-slate-50/50 dark:hover:bg-[#1C2230]/50 transition-colors">
-                <td className="py-2.5 px-3 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                <td className="py-1.5 px-2.5 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap text-[11px]">
                   {competencies[rIdx]}
                 </td>
                 {row.map((cell, cIdx) => (
-                  <td key={cIdx} className="py-2 px-2 text-center">
+                  <td key={cIdx} className="py-1 px-1 text-center">
                     <button
                       type="button"
                       onClick={() => setSelectedCell(cell)}
-                      className={`w-12 h-9 mx-auto rounded-lg font-mono font-bold text-xs border flex items-center justify-center transition-transform hover:scale-105 cursor-pointer shadow-2xs ${getCellColor(
+                      className={`w-10 h-7.5 mx-auto rounded-md font-mono font-bold text-[11px] border flex items-center justify-center transition-transform hover:scale-105 cursor-pointer shadow-2xs ${getCellColor(
                         cell.score
                       )}`}
                       title={`Click to inspect ${cell.competency} in ${cell.sessionName}`}

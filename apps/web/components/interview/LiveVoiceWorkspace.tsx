@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useVoiceRecorder, RecordingState } from "@/hooks/useVoiceRecorder";
+import { RealtimeWaveformEqualizer } from "./RealtimeWaveformEqualizer";
 import { cn } from "@/lib/utils";
 
 interface LiveVoiceWorkspaceProps {
@@ -276,50 +277,29 @@ export function LiveVoiceWorkspace({
         {/* State 2 & 3: RECORDING or PAUSED */}
         {(recordingState === "recording" || recordingState === "paused") && (
           <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 dark:bg-orange-500/10 p-4 space-y-4">
-            {/* Live Audio Visualizer & Waveform */}
-            <div className="flex flex-col items-center justify-center space-y-3">
-              <div className="flex items-center gap-1.5 h-12 px-4 py-2">
-                {[...Array(16)].map((_, i) => {
-                  // Dynamic height calculation based on audio level and index
-                  const variance = Math.sin(i * 0.4 + Date.now() * 0.005) * 20;
-                  const activeHeight =
-                    recordingState === "recording"
-                      ? Math.max(6, Math.min(44, (audioLevel * (0.6 + (i % 5) * 0.15)) + variance))
-                      : 6;
+            {/* Real-Time Waveform & Spectral Equalizer Visualization */}
+            <RealtimeWaveformEqualizer
+              audioLevel={audioLevel}
+              isRecording={recordingState === "recording"}
+            />
 
-                  return (
-                    <span
-                      key={i}
-                      className={cn(
-                        "w-1.5 rounded-full transition-all duration-75",
-                        recordingState === "recording"
-                          ? "bg-gradient-to-t from-orange-500 to-amber-400 shadow-2xs"
-                          : "bg-slate-300 dark:bg-slate-700"
-                      )}
-                      style={{ height: `${activeHeight}px` }}
-                    />
-                  );
-                })}
-              </div>
+            {/* Status & Timer */}
+            <div className="flex items-center justify-center gap-3">
+              <span
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold",
+                  recordingState === "recording"
+                    ? "bg-rose-500 text-white animate-pulse"
+                    : "bg-amber-500 text-white"
+                )}
+              >
+                <span className="h-2 w-2 rounded-full bg-white" />
+                {recordingState === "recording" ? "LIVE RECORDING" : "PAUSED"}
+              </span>
 
-              {/* Status & Timer */}
-              <div className="flex items-center gap-3">
-                <span
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold",
-                    recordingState === "recording"
-                      ? "bg-rose-500 text-white animate-pulse"
-                      : "bg-amber-500 text-white"
-                  )}
-                >
-                  <span className="h-2 w-2 rounded-full bg-white" />
-                  {recordingState === "recording" ? "LIVE RECORDING" : "PAUSED"}
-                </span>
-
-                <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700">
-                  <Clock className="h-3.5 w-3.5 text-orange-500" />
-                  <span>{formatTime(durationSeconds)}</span>
-                </div>
+              <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700">
+                <Clock className="h-3.5 w-3.5 text-orange-500" />
+                <span>{formatTime(durationSeconds)}</span>
               </div>
             </div>
 

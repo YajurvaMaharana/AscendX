@@ -12,23 +12,17 @@ import { useTheme } from "@/context/ThemeContext";
 import { useTab, type TabType } from "@/context/TabContext";
 import {
   LayoutDashboard,
-  Bot,
+  Users,
   FileText,
-  AudioLines,
-  Laptop,
-  TrendingUp,
-  Sparkles,
+  Mic,
+  Calendar,
+  BarChart3,
+  Award,
   Sun,
   Moon,
-  Menu,
-  X,
-  SlidersHorizontal,
-  ChevronRight,
   User,
-  Settings,
   LogOut,
   ChevronDown,
-  ShieldCheck,
   Edit3,
 } from "lucide-react";
 
@@ -47,14 +41,30 @@ export default function AscendXNavbar({
   const { theme, toggleTheme } = useTheme();
   const { activeTab, setActiveTab } = useTab();
 
-  // State for mobile drawer, expandable labels, profile menu and modal
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [expandAllLabels, setExpandAllLabels] = useState(false);
+  // State for profile menu and modals
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isVoiceCoachOpen, setIsVoiceCoachOpen] = useState(false);
+  const [hoveredTab, setHoveredTab] = useState<TabType | null>(null);
 
   const profileDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Sync activeTab when navigating to specific routes
+  useEffect(() => {
+    if (pathname === "/voice-coach") {
+      setActiveTab("voice-coach");
+    } else if (pathname === "/feedback-hub") {
+      setActiveTab("feedback-hub");
+    } else if (pathname === "/day-simulations") {
+      setActiveTab("day-simulations");
+    } else if (pathname === "/resume-jd-grounding") {
+      setActiveTab("resume-grounding");
+    } else if (pathname === "/mock-interviews" || pathname === "/interview/new") {
+      setActiveTab("mock-interviews");
+    } else if (pathname === "/dashboard") {
+      setActiveTab("dashboard");
+    }
+  }, [pathname, setActiveTab]);
 
   // Close profile dropdown when clicking outside
   useEffect(() => {
@@ -81,7 +91,7 @@ export default function AscendXNavbar({
     {
       name: "Mock Interviews",
       tabKey: "mock-interviews" as TabType,
-      icon: Bot,
+      icon: Users,
     },
     {
       name: "Resume & JD Grounding",
@@ -91,24 +101,31 @@ export default function AscendXNavbar({
     {
       name: "Voice & Speech Coach",
       tabKey: "voice-coach" as TabType,
-      icon: AudioLines,
+      icon: Mic,
     },
     {
       name: "Day Simulations",
       tabKey: "day-simulations" as TabType,
-      icon: Laptop,
+      icon: Calendar,
     },
     {
       name: "Insights & Trends",
       tabKey: "insights" as TabType,
-      icon: TrendingUp,
+      icon: BarChart3,
     },
     {
       name: "Feedback Hub",
       tabKey: "feedback-hub" as TabType,
-      icon: Sparkles,
+      icon: Award,
     },
   ];
+
+  const handleNavClick = (tabKey: TabType) => {
+    setActiveTab(tabKey);
+    if (pathname !== "/") {
+      router.push("/");
+    }
+  };
 
   const u = user as any;
   const candidateDisplayName =
@@ -123,84 +140,120 @@ export default function AscendXNavbar({
     u?.user_metadata?.target_role ||
     "Full-Stack Engineer";
 
+  // Reusable compact, icon-only navigation bar island with dynamic expansion
+  const renderNavIsland = (isMobile: boolean = false) => (
+    <div
+      id={isMobile ? "mobile-top-navigation-container" : "top-navigation-container"}
+      className="inline-flex items-center p-1 sm:p-1.5 rounded-full bg-white/95 dark:bg-[#151922]/95 backdrop-blur-md border border-slate-200/80 dark:border-[#222B3A] shadow-xs dark:shadow-[0_4px_20px_rgba(0,0,0,0.35)] transition-all duration-300 ease-in-out shrink-0"
+    >
+      <nav
+        id={isMobile ? "mobile-top-navigation-bar" : "top-navigation-bar"}
+        aria-label="Main Navigation"
+        className="flex items-center gap-1 sm:gap-1.5"
+      >
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.tabKey;
+          const isHovered = hoveredTab === item.tabKey;
+          const isExpanded = isActive || isHovered;
+
+          return (
+            <button
+              key={item.name}
+              id={`${isMobile ? "mobile-" : ""}nav-item-${item.tabKey}`}
+              type="button"
+              onClick={() => handleNavClick(item.tabKey)}
+              onMouseEnter={() => setHoveredTab(item.tabKey)}
+              onMouseLeave={() => setHoveredTab(null)}
+              onFocus={() => setHoveredTab(item.tabKey)}
+              onBlur={() => setHoveredTab(null)}
+              className={`group relative flex items-center h-8 sm:h-8.5 rounded-full text-xs font-medium cursor-pointer select-none transition-all duration-300 ease-in-out shrink-0 ${
+                isExpanded
+                  ? "px-3.5 gap-2"
+                  : "px-2.5 sm:px-2.5 gap-0"
+              } ${
+                isActive
+                  ? "bg-[#E8602E] text-white font-semibold shadow-xs shadow-orange-500/25"
+                  : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/90 dark:hover:bg-[#1E2534]"
+              }`}
+              aria-label={item.name}
+              aria-current={isActive ? "page" : undefined}
+              title={item.name}
+            >
+              <Icon
+                className={`w-4 h-4 shrink-0 transition-transform duration-300 ease-in-out ${
+                  isActive
+                    ? "text-white scale-100"
+                    : "text-slate-500 dark:text-slate-400 group-hover:text-[#E87A42] group-hover:scale-110"
+                }`}
+              />
+              <span
+                className={`whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out text-xs ${
+                  isExpanded
+                    ? "max-w-[170px] opacity-100 translate-x-0"
+                    : "max-w-0 opacity-0 -translate-x-1 pointer-events-none"
+                }`}
+              >
+                {item.name}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+    </div>
+  );
+
   return (
     <>
-      <header className="sticky top-2 sm:top-3 z-50 w-full px-3 sm:px-6 lg:px-8">
-        {/* Floating Rounded Navbar Container */}
-        <div className="max-w-[1400px] mx-auto rounded-2xl sm:rounded-full bg-white/95 dark:bg-[#151922]/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/90 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] px-3.5 sm:px-5 py-2 transition-all duration-300">
-          <div className="flex items-center justify-between h-12">
+      <header
+        id="app-header-navigation"
+        className="sticky top-0 z-50 w-full bg-[#ECEEF2]/95 dark:bg-[#0B0F15]/95 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-800/60 shadow-xs transition-colors duration-300"
+      >
+        <div className="max-w-[1380px] mx-auto px-3 sm:px-6 lg:px-7 py-2 sm:py-2.5 space-y-2 lg:space-y-0">
+          {/* Main Top Header: Logo + Compact Expandable Navigation Island + User Controls */}
+          <div className="flex items-center justify-between gap-3">
             {/* Logo on the far left */}
             <button
               type="button"
-              onClick={() => setActiveTab("dashboard")}
-              className="flex items-center transition-transform hover:scale-[1.02] cursor-pointer bg-transparent border-none p-0"
+              id="navbar-brand-logo-button"
+              onClick={() => handleNavClick("dashboard")}
+              className="flex items-center transition-transform hover:scale-[1.01] cursor-pointer bg-transparent border-none p-0 focus:outline-hidden shrink-0"
+              title="AscendX AI Mock Interview Studio"
             >
               <AscendXLogo size="md" />
             </button>
 
-            {/* Desktop Navigation: Collapsible Icons & Interactive Expansion */}
-            <nav className="hidden xl:flex items-center gap-1 2xl:gap-1.5 bg-slate-100/70 dark:bg-[#1C2230]/70 p-1 rounded-full border border-slate-200/60 dark:border-slate-800">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeTab === item.tabKey;
+            {/* Desktop Center: Compact Expandable Navigation Bar */}
+            <div className="hidden lg:flex items-center justify-center flex-1 mx-3 xl:mx-6">
+              {renderNavIsland(false)}
+            </div>
 
-                return (
-                  <button
-                    key={item.name}
-                    type="button"
-                    onClick={() => setActiveTab(item.tabKey)}
-                    className={`group relative flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ease-out cursor-pointer select-none ${
-                      isActive
-                        ? "bg-[#E8602E] text-white font-semibold shadow-xs"
-                        : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-[#283144]"
-                    }`}
-                    title={item.name}
-                  >
-                    {/* Clean Feature Icon */}
-                    <Icon
-                      className={`w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110 ${
-                        isActive
-                          ? "text-white"
-                          : "text-slate-500 dark:text-slate-400 group-hover:text-[#E87A42]"
-                      }`}
-                    />
-
-                    {/* Collapsible Label: expands smoothly on active, hover, or when global expand is on */}
-                    <span
-                      className={`transition-all duration-300 ease-out whitespace-nowrap overflow-hidden ${
-                        isActive || expandAllLabels
-                          ? "max-w-[200px] opacity-100"
-                          : "max-w-0 opacity-0 group-hover:max-w-[200px] group-hover:opacity-100"
-                      }`}
-                    >
-                      {item.name}
-                    </span>
-                  </button>
-                );
-              })}
-
-              {/* Icon Label Expand Toggle Switch */}
+            {/* Right Section: Voice Status, Theme Toggle + Candidate Profile Dropdown */}
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              {/* Voice Coach Quick Access Badge */}
               <button
                 type="button"
-                onClick={() => setExpandAllLabels(!expandAllLabels)}
-                className="p-1.5 ml-0.5 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-[#283144] transition-colors cursor-pointer"
-                title={
-                  expandAllLabels
-                    ? "Collapse Feature Labels"
-                    : "Expand All Labels"
-                }
+                id="voice-coach-quick-btn"
+                onClick={() => {
+                  if (onOpenVoiceModal) {
+                    onOpenVoiceModal();
+                  } else {
+                    setIsVoiceCoachOpen(true);
+                  }
+                }}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white dark:bg-[#1C2230] border border-slate-200/80 dark:border-slate-700/80 hover:border-[#E87A42] dark:hover:border-[#E87A42] text-slate-700 dark:text-slate-200 shadow-2xs transition-colors cursor-pointer"
+                title="Open Voice Coach Calibration"
               >
-                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <Mic className="w-3.5 h-3.5 text-[#E87A42]" />
+                <span>Voice Coach</span>
               </button>
-            </nav>
 
-            {/* Right Section: Theme Toggle + Candidate Profile Dropdown */}
-            <div className="flex items-center gap-2 sm:gap-3">
               {/* Dark Mode / Light Mode Toggle Button */}
               <button
                 type="button"
+                id="theme-toggle-btn"
                 onClick={toggleTheme}
-                className="relative p-2 rounded-full bg-slate-100 dark:bg-[#1E2433] text-slate-700 dark:text-amber-400 hover:bg-[#FFF6F0] dark:hover:bg-[#2A3245] border border-slate-200/80 dark:border-slate-700/80 transition-all duration-200 shadow-2xs group"
+                className="relative p-2 rounded-full bg-white dark:bg-[#1E2433] text-slate-700 dark:text-amber-400 hover:bg-[#FFF6F0] dark:hover:bg-[#2A3245] border border-slate-200/80 dark:border-slate-700/80 transition-all duration-200 shadow-2xs group cursor-pointer"
                 title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
                 aria-label="Toggle Theme"
               >
@@ -217,7 +270,7 @@ export default function AscendXNavbar({
                   type="button"
                   id="profile-dropdown-trigger"
                   onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                  className="flex items-center gap-1.5 p-0.5 rounded-full ring-1 ring-slate-200 dark:ring-slate-700 hover:ring-2 hover:ring-[#E87A42] transition-all focus:outline-hidden"
+                  className="flex items-center gap-1.5 p-0.5 rounded-full ring-1 ring-slate-200 dark:ring-slate-700 hover:ring-2 hover:ring-[#E87A42] transition-all focus:outline-hidden cursor-pointer"
                   aria-expanded={isProfileMenuOpen}
                   title="Candidate profile and options"
                 >
@@ -261,27 +314,30 @@ export default function AscendXNavbar({
                           setIsProfileMenuOpen(false);
                           setIsEditModalOpen(true);
                         }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-slate-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-slate-800/60 hover:text-orange-600 dark:hover:text-orange-400 transition-colors text-left"
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-slate-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-slate-800/60 hover:text-orange-600 dark:hover:text-orange-400 transition-colors text-left cursor-pointer"
                       >
                         <Edit3 className="w-4 h-4 text-orange-500" />
                         <span>Quick Edit Profile</span>
                       </button>
 
-                      <Link
-                        href="/dashboard"
-                        onClick={() => setIsProfileMenuOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2 text-slate-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-slate-800/60 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          handleNavClick("dashboard");
+                        }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-slate-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-slate-800/60 hover:text-orange-600 dark:hover:text-orange-400 transition-colors text-left cursor-pointer"
                       >
                         <LayoutDashboard className="w-4 h-4 text-slate-400" />
                         <span>My Dashboard</span>
-                      </Link>
+                      </button>
 
                       <Link
                         href="/interview/new"
                         onClick={() => setIsProfileMenuOpen(false)}
                         className="flex items-center gap-2.5 px-4 py-2 text-slate-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-slate-800/60 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                       >
-                        <Bot className="w-4 h-4 text-slate-400" />
+                        <Users className="w-4 h-4 text-slate-400" />
                         <span>Start Mock Interview</span>
                       </Link>
                     </div>
@@ -295,7 +351,7 @@ export default function AscendXNavbar({
                           setIsProfileMenuOpen(false);
                           await signOut();
                         }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors text-left font-medium"
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors text-left font-medium cursor-pointer"
                       >
                         <LogOut className="w-4 h-4" />
                         <span>Log Out</span>
@@ -304,126 +360,13 @@ export default function AscendXNavbar({
                   </div>
                 )}
               </div>
-
-              {/* Mobile Hamburger Menu Toggle */}
-              <button
-                type="button"
-                className="xl:hidden p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                aria-label="Toggle navigation menu"
-              >
-                {isMobileMenuOpen ? (
-                  <X className="w-5 h-5" />
-                ) : (
-                  <Menu className="w-5 h-5" />
-                )}
-              </button>
             </div>
           </div>
 
-          {/* Mobile Navigation Drawer */}
-          {isMobileMenuOpen && (
-            <div className="xl:hidden border-t border-slate-100 dark:border-slate-800 mt-2 pt-3 pb-2 space-y-1 animate-in slide-in-from-top-2 duration-200">
-              {/* Profile Shortcut on mobile */}
-              <div className="p-3 mb-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <CandidateProfileAvatar className="w-8 h-8" />
-                  <div className="text-left">
-                    <p className="text-xs font-bold text-slate-900 dark:text-white">
-                      {candidateDisplayName}
-                    </p>
-                    <p className="text-[11px] text-orange-600 dark:text-orange-400">
-                      {candidateTargetRole}
-                    </p>
-                  </div>
-                </div>
-                <Link
-                  href="/profile"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-500/20"
-                >
-                  Edit
-                </Link>
-              </div>
-
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeTab === item.tabKey;
-
-                return (
-                  <button
-                    key={item.name}
-                    type="button"
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      setActiveTab(item.tabKey);
-                    }}
-                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-                      isActive
-                        ? "bg-[#E8602E] text-white font-semibold"
-                        : "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Icon className={`w-4 h-4 ${isActive ? "text-white" : "text-[#E87A42]"}`} />
-                      <span>{item.name}</span>
-                    </div>
-                    <ChevronRight className="w-3.5 h-3.5 opacity-60" />
-                  </button>
-                );
-              })}
-
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1 px-1">
-                <Link
-                  href="/profile"
-                  id="mobile-nav-profile-link"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-slate-800 rounded-xl"
-                >
-                  <User className="w-4 h-4 text-orange-500" />
-                  <span>Candidate Profile Page</span>
-                </Link>
-
-                <button
-                  type="button"
-                  id="mobile-nav-quick-edit-btn"
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    setIsEditModalOpen(true);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-slate-800 rounded-xl text-left"
-                >
-                  <Edit3 className="w-4 h-4 text-orange-500" />
-                  <span>Quick Edit Profile</span>
-                </button>
-
-                <Link
-                  href="/interview/new"
-                  id="mobile-nav-start-interview-link"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-slate-800 rounded-xl"
-                >
-                  <Bot className="w-4 h-4 text-slate-400" />
-                  <span>Start Mock Interview</span>
-                </Link>
-
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                  <button
-                    type="button"
-                    id="mobile-nav-logout-btn"
-                    onClick={async () => {
-                      setIsMobileMenuOpen(false);
-                      await signOut();
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-left font-medium"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>Log Out</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Mobile / Tablet Screen (< lg): Centered Compact Navigation Island */}
+          <div className="lg:hidden flex items-center justify-center pt-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            {renderNavIsland(true)}
+          </div>
         </div>
       </header>
 

@@ -53,29 +53,29 @@ export default function DeliveryTelemetry() {
       </h3>
       <div className="grid grid-cols-2 gap-2">
         <TelemetryBox
-          label="Speech Pods"
-          value="130 WPM"
+          label="Speech Pace"
+          value="138 WPM"
           barColor="green"
           bgColor="olive"
           barHeights={[2, 3, 5, 4, 3]}
         />
         <TelemetryBox
-          label="Filler Words"
-          value="Low"
+          label="Filler Ratio"
+          value="1.8% / Low"
           barColor="orange"
           bgColor="olive"
           barHeights={[1, 2, 4, 3, 2]}
         />
         <TelemetryBox
-          label="Filler Words"
-          value="Low"
+          label="Vocal Clarity"
+          value="95% / High"
           barColor="green"
           bgColor="olive"
-          barHeights={[2, 4, 5, 3, 1]}
+          barHeights={[2, 4, 5, 3, 4]}
         />
         <TelemetryBox
-          label="Filler Words"
-          value="Low"
+          label="Response Latency"
+          value="0.8s / Optimal"
           barColor="orange"
           bgColor="bronze"
           barHeights={[2, 3, 5, 4, 5]}

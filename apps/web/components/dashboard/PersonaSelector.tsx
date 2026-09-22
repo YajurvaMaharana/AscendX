@@ -92,7 +92,7 @@ export default function PersonaSelector({
       </div>
 
       {/* Personas Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-2">
         {personas.map((p) => {
           const isSelected = currentSelected === p.id;
           return (
@@ -100,31 +100,31 @@ export default function PersonaSelector({
               key={p.id}
               type="button"
               onClick={() => handleSelect(p.id)}
-              className={`relative flex flex-col items-center justify-between p-3 rounded-2xl transition-all duration-200 text-center cursor-pointer group ${
+              className={`relative flex flex-col items-center justify-between p-2 sm:p-2.5 rounded-xl transition-all duration-200 text-center cursor-pointer group ${
                 isSelected
-                  ? "border-2 border-[#E8602E] bg-[#FFF6F0] dark:bg-[#2A1D17] shadow-sm ring-2 ring-[#E8602E]/20"
+                  ? "border-2 border-[#E8602E] bg-[#FFF6F0] dark:bg-[#2A1D17] shadow-xs ring-1 ring-[#E8602E]/20"
                   : "border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#181E29] hover:border-slate-300 dark:hover:border-slate-700 shadow-2xs"
               }`}
             >
               {/* Checkmark badge for selected persona */}
               {isSelected && (
-                <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[#E8602E] text-white flex items-center justify-center shadow-xs">
-                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                <div className="absolute top-1.5 right-1.5 w-3.5 h-3.5 rounded-full bg-[#E8602E] text-white flex items-center justify-center shadow-xs">
+                  <Check className="w-2 h-2 stroke-[3]" />
                 </div>
               )}
 
               {/* Avatar Illustration */}
-              <div className="py-1 group-hover:scale-105 transition-transform duration-200">{p.avatar}</div>
+              <div className="py-0.5 group-hover:scale-105 transition-transform duration-200 scale-90">{p.avatar}</div>
 
               {/* Identity Details */}
-              <div className="mt-1.5 space-y-0.5">
-                <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
+              <div className="mt-1 space-y-0.5">
+                <p className="text-[11.5px] font-bold text-slate-900 dark:text-white leading-tight">
                   {p.name}
                 </p>
-                <p className="text-[11px] font-semibold text-[#E8602E] leading-tight">
+                <p className="text-[10px] font-semibold text-[#E8602E] leading-tight">
                   {p.title}
                 </p>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight pt-1">
+                <p className="text-[9px] text-slate-500 dark:text-slate-400 leading-snug line-clamp-2 pt-0.5">
                   {p.description}
                 </p>
               </div>

@@ -17,7 +17,17 @@ const defaultData: DataPoint[] = [
   { x: 250, y: 92, label: "250m - Master Lead Mock" },
 ];
 
-export default function CompetencyGrowthLineChart() {
+interface CompetencyGrowthLineChartProps {
+  data?: DataPoint[];
+  title?: string;
+  subtitle?: string;
+}
+
+export default function CompetencyGrowthLineChart({
+  data = defaultData,
+  title = "Competency Score Growth Over Time",
+  subtitle,
+}: CompetencyGrowthLineChartProps) {
   const [activeToggle, setActiveToggle] = useState(true);
   const [hoveredPoint, setHoveredPoint] = useState<DataPoint | null>(null);
 
@@ -32,12 +42,15 @@ export default function CompetencyGrowthLineChart() {
   const chartWidth = svgWidth - paddingLeft - paddingRight;
   const chartHeight = svgHeight - paddingTop - paddingBottom;
 
+  const chartData = data && data.length > 0 ? data : defaultData;
+  const maxX = Math.max(...chartData.map((d) => d.x), 250);
+
   // Coordinate mappers
-  const mapX = (xVal: number) => paddingLeft + (xVal / 250) * chartWidth;
+  const mapX = (xVal: number) => paddingLeft + (xVal / maxX) * chartWidth;
   const mapY = (yVal: number) => paddingTop + chartHeight - (yVal / 100) * chartHeight;
 
   // Points
-  const points = defaultData.map((d) => ({
+  const points = chartData.map((d) => ({
     xCoord: mapX(d.x),
     yCoord: mapY(d.y),
     raw: d,
@@ -68,9 +81,14 @@ export default function CompetencyGrowthLineChart() {
     <div className="flex flex-col justify-between w-full h-full min-h-[300px]">
       {/* Header with Title and Toggle */}
       <div className="flex items-center justify-between w-full pb-1">
-        <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight leading-snug max-w-[200px]">
-          Competency Score Growth Over Time
-        </h3>
+        <div>
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight leading-snug max-w-[240px]">
+            {title}
+          </h3>
+          {subtitle && (
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">{subtitle}</p>
+          )}
+        </div>
         <button
           type="button"
           onClick={() => setActiveToggle(!activeToggle)}

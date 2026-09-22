@@ -38,36 +38,41 @@ export default function DailyDrillWidget() {
   return (
     <>
       {/* Dashboard Card */}
-      <div className="w-full border border-[#E87A42]/30 bg-gradient-to-br from-[#FFF8F5] to-[#FFEEEC] dark:from-[#2A1E18] dark:to-[#1E1410] rounded-2xl p-4 sm:p-5 shadow-sm space-y-4 relative overflow-hidden">
+      <div className="w-full border border-[#E87A42]/30 bg-gradient-to-br from-[#FFF8F5] to-[#FFEEEC] dark:from-[#2A1E18] dark:to-[#1E1410] rounded-2xl p-3.5 sm:p-4 shadow-xs relative overflow-hidden h-full flex flex-col justify-between space-y-2.5">
         <div className="absolute top-0 right-0 w-32 h-32 bg-[#E87A42]/10 rounded-full blur-2xl pointer-events-none" />
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#E8602E] to-[#F17E45] text-white flex items-center justify-center shrink-0 shadow-sm animate-pulse">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#E8602E] to-[#F17E45] text-white flex items-center justify-center shrink-0 shadow-xs animate-pulse mt-0.5">
               <Zap className="w-4 h-4" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">
+            <div className="space-y-0.5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white tracking-tight">
                   Daily Five-Minute Drill
                 </h3>
-                <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold bg-[#E87A42]/20 text-[#E87A42] px-2 py-0.5 rounded-full border border-[#E87A42]/30">
-                  <Flame className="w-3 h-3 fill-[#E87A42]" /> 5-Day Streak
+                <span className="inline-flex items-center gap-0.5 text-[9.5px] font-mono font-bold bg-[#E87A42]/20 text-[#E87A42] px-2 py-0.5 rounded-full border border-[#E87A42]/30">
+                  <Flame className="w-2.5 h-2.5 fill-[#E87A42]" /> 5-Day Streak
                 </span>
               </div>
-              <p className="text-[10.5px] text-slate-600 dark:text-slate-300">
-                Targeted practice isolating your weakest evaluated skill: <strong className="text-[#E87A42]">{weakestSkill}</strong>
+              <p className="text-[10px] text-slate-600 dark:text-slate-300">
+                Targeted practice isolating: <strong className="text-[#E87A42]">{weakestSkill}</strong>
               </p>
             </div>
           </div>
+        </div>
 
+        <div className="pt-1 flex items-center justify-between gap-2 border-t border-[#E87A42]/15">
+          <span className="text-[10px] text-slate-500 dark:text-slate-400">
+            ~5 mins • Adaptive evaluation
+          </span>
           <button
             type="button"
             onClick={() => setIsDrillModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#E8602E] to-[#F17E45] text-white text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 hover:from-[#d85322] hover:to-[#e07038] transition-all cursor-pointer"
+            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#E8602E] to-[#F17E45] text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 hover:from-[#d85322] hover:to-[#e07038] transition-all cursor-pointer shrink-0"
           >
             <Mic className="w-3.5 h-3.5" />
-            <span>Launch Today&apos;s 5-Min Drill</span>
+            <span>Launch 5-Min Drill</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
