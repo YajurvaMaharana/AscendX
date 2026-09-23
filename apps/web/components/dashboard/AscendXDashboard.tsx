@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTab, TabType } from "@/context/TabContext";
 import DashboardOverview from "@/components/dashboard/views/DashboardOverview";
 import MockInterviewsView from "@/components/dashboard/views/MockInterviewsView";
@@ -9,7 +10,8 @@ import GapAnalysisView from "@/components/grounding/GapAnalysisView";
 import VoiceCoachPage from "@/app/voice-coach/page";
 import DaySimulationsPage from "@/app/day-simulations/page";
 import FeedbackHubPage from "@/app/feedback-hub/page";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { getActiveSessionId } from "@/hooks/useInterviewSessionState";
 
 export interface AscendXDashboardProps {
   initialSessions?: Array<{
@@ -28,17 +30,38 @@ export default function AscendXDashboard({
   initialResume,
   initialJD,
 }: AscendXDashboardProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { activeTab, setActiveTab } = useTab();
   const [mounted, setMounted] = useState(false);
+  const [isRedirectingToActiveSession, setIsRedirectingToActiveSession] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    // 1. Bypass dashboard fallback on active state:
+    // If an active in-progress interview session exists in localStorage and user hasn't explicitly requested to view dashboard,
+    // immediately mount/redirect to the active interview room.
+    const explicitDashboardStay = searchParams?.get("stay") === "true";
+    if (!explicitDashboardStay) {
+      const activeSessionId = getActiveSessionId();
+      if (activeSessionId) {
+        setIsRedirectingToActiveSession(true);
+        router.replace(`/interview/${encodeURIComponent(activeSessionId)}`);
+        return;
+      }
+    }
 
-  if (!mounted) {
+    setMounted(true);
+  }, [router, searchParams]);
+
+  if (!mounted || isRedirectingToActiveSession) {
     return (
-      <div className="w-full min-h-[calc(100vh-5rem)] bg-[#ECEEF2] dark:bg-[#0B0F15] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E87A42]" />
+      <div className="w-full min-h-[calc(100vh-5rem)] bg-[#ECEEF2] dark:bg-[#0B0F15] flex flex-col items-center justify-center space-y-3">
+        <Loader2 className="h-8 w-8 animate-spin text-[#E87A42]" />
+        {isRedirectingToActiveSession && (
+          <p className="text-xs font-mono text-slate-600 dark:text-slate-400 animate-pulse">
+            Resuming active interview session...
+          </p>
+        )}
       </div>
     );
   }

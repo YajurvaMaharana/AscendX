@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 
 /* eslint-disable react-hooks/exhaustive-deps */
 
@@ -22,6 +21,7 @@ import {
   Sliders,
   LayoutGrid,
   RotateCcw,
+  Loader2,
 } from "lucide-react";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { ChatBubble, type ChatMessage } from "@/components/interview/ChatBubble";
@@ -38,6 +38,11 @@ import PreFlightModal from "@/components/interview/PreFlightModal";
 import type { PreFlightCheckResults } from "@/components/interview/PreFlightDiagnostic";
 import type { SessionAdaptiveTelemetry } from "@/lib/services/ai-engine/adaptive-engine.service";
 import type { JobDescriptionParsedData } from "@/lib/types/database.types";
+import {
+  getStoredSessionState,
+  useInterviewSessionPersistence,
+  markSessionCompleted,
+} from "@/hooks/useInterviewSessionState";
 
 interface InterviewResponse {
   message: string;
@@ -56,7 +61,7 @@ interface SessionData {
   jd_data?: JobDescriptionParsedData | null;
 }
 
-export default function InterviewPage() {
+function InterviewPageContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -73,25 +78,89 @@ export default function InterviewPage() {
     return false;
   });
 
-  const [session, setSession] = React.useState<SessionData | null>(null);
-  const [telemetry, setTelemetry] = React.useState<SessionAdaptiveTelemetry | null>(null);
-  const [isVoiceMode, setIsVoiceMode] = React.useState(false);
-  const [activeLayout, setActiveLayout] = React.useState<"dual-pane" | "stream">("dual-pane");
-  const [isImmersiveMode, setIsImmersiveMode] = React.useState<boolean>(true);
-  const [messages, setMessages] = React.useState<ChatMessage[]>([
-    {
-      id: "initial-greeting",
-      role: "assistant",
-      content:
-        "Hello! I am your AI Interviewer today. Welcome to your mock interview session.\n\nTo get started, please tell me a bit about your background or simply say \"Ready\" when you would like me to ask the first question.",
-      timestamp: new Date(),
-    },
-  ]);
+  // Synchronously hydrate initial stored session parameters from localStorage on mount
+  const storedInitial = React.useMemo(() => {
+    if (typeof window !== "undefined") {
+      return getStoredSessionState(interviewId);
+    }
+    return null;
+  }, [interviewId]);
+
+  const [session, setSession] = React.useState<SessionData | null>(() => {
+    if (storedInitial) {
+      return {
+        id: interviewId,
+        role: storedInitial.personaDisplayName || "Software Engineering",
+        difficulty: "Medium",
+        type: "Technical",
+        status: "in_progress",
+        persona: storedInitial.persona || "tech-grinder",
+      };
+    }
+    return null;
+  });
+
+  const [telemetry, setTelemetry] = React.useState<SessionAdaptiveTelemetry | null>(() => {
+    return storedInitial?.telemetry || null;
+  });
+
+  const [isVoiceMode, setIsVoiceMode] = React.useState<boolean>(() => {
+    return storedInitial?.isVoiceMode ?? false;
+  });
+
+  const [activeLayout, setActiveLayout] = React.useState<"dual-pane" | "stream">(() => {
+    return storedInitial?.activeLayout || "dual-pane";
+  });
+
+  const [isImmersiveMode, setIsImmersiveMode] = React.useState<boolean>(() => {
+    return storedInitial?.isImmersiveMode ?? true;
+  });
+
+  const [messages, setMessages] = React.useState<ChatMessage[]>(() => {
+    if (storedInitial?.messages && storedInitial.messages.length > 0) {
+      return storedInitial.messages;
+    }
+    return [
+      {
+        id: "initial-greeting",
+        role: "assistant",
+        content:
+          "Hello! I am your AI Interviewer today. Welcome to your mock interview session.\n\nTo get started, please tell me a bit about your background or simply say \"Ready\" when you would like me to ask the first question.",
+        timestamp: new Date(),
+      },
+    ];
+  });
 
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [lastFailedMessage, setLastFailedMessage] = React.useState<string | null>(null);
-  const [sessionRestoredNotice, setSessionRestoredNotice] = React.useState<string | null>(null);
+  const [sessionRestoredNotice, setSessionRestoredNotice] = React.useState<string | null>(() => {
+    if (storedInitial && storedInitial.messages?.length > 1) {
+      return "Session restored from exact point of interruption.";
+    }
+    return null;
+  });
+
+  // Persona name resolution
+  const personaDisplayName = React.useMemo(() => {
+    const p = session?.persona || storedInitial?.persona || "tech-grinder";
+    if (p === "hr-partner") return "Sarah Jenkins (HR)";
+    if (p === "simulation-boss") return "Marcus Sterling (VP)";
+    if (p === "supportive-mentor") return "Elena Rostova (Staff)";
+    return "Alex Vance (Lead)";
+  }, [session?.persona, storedInitial?.persona]);
+
+  // Unified persistent session management: tracks elapsed time and persists state
+  const { elapsedSeconds, questionIndex } = useInterviewSessionPersistence({
+    sessionId: interviewId,
+    messages,
+    telemetry,
+    persona: session?.persona || storedInitial?.persona || "tech-grinder",
+    personaDisplayName,
+    activeLayout,
+    isImmersiveMode,
+    isVoiceMode,
+  });
 
   // Spoken message tracking for Hands-Free Speech Flow
   const spokenMessageIdsRef = React.useRef<Set<string>>(new Set());
@@ -110,15 +179,6 @@ export default function InterviewPage() {
     );
     return aiMsgs.length > 0 ? aiMsgs[aiMsgs.length - 1] : null;
   }, [messages]);
-
-  // Persona name resolution
-  const personaDisplayName = React.useMemo(() => {
-    const p = session?.persona || "tech-grinder";
-    if (p === "hr-partner") return "Sarah Jenkins (HR)";
-    if (p === "simulation-boss") return "Marcus Sterling (VP)";
-    if (p === "supportive-mentor") return "Elena Rostova (Staff)";
-    return "Alex Vance (Lead)";
-  }, [session?.persona]);
 
   // Handle successful completion of Pre-Flight Check
   const handlePreFlightProceed = (results: PreFlightCheckResults) => {
@@ -343,13 +403,16 @@ export default function InterviewPage() {
   };
 
   const handleEndSession = () => {
-    // 1. Explicitly halt text-to-speech audio synthesis
+    // 1. Mark session completed and clear active session pointer from localStorage
+    markSessionCompleted(interviewId);
+
+    // 2. Explicitly halt text-to-speech audio synthesis
     tts.stop();
 
-    // 2. Terminate all active camera and microphone tracks & release hardware indicators
+    // 3. Terminate all active camera and microphone tracks & release hardware indicators
     terminateAllActiveMediaStreams();
 
-    // 3. Navigate to feedback report
+    // 4. Navigate to feedback report
     const targetUrl = `/interview/${encodeURIComponent(interviewId)}/feedback`;
     router.push(targetUrl);
   };
@@ -520,6 +583,8 @@ export default function InterviewPage() {
             isImmersive={isImmersiveMode}
             onToggleImmersive={() => setIsImmersiveMode(!isImmersiveMode)}
             sessionId={interviewId}
+            elapsedSeconds={elapsedSeconds}
+            questionIndex={questionIndex}
             tts={tts}
           />
         </div>
@@ -656,3 +721,23 @@ export default function InterviewPage() {
     </div>
   );
 }
+
+export default function InterviewPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#ECEEF2] dark:bg-[#0B0F15]">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-[#E87A42]" />
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">
+              Loading interview simulation room...
+            </p>
+          </div>
+        </div>
+      }
+    >
+      <InterviewPageContent />
+    </React.Suspense>
+  );
+}
+

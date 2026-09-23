@@ -25,6 +25,8 @@ import {
   ShieldAlert,
   Braces,
   Award,
+  Clock,
+  HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -45,6 +47,8 @@ interface DualPaneWorkspaceProps {
   isImmersive?: boolean;
   onToggleImmersive?: () => void;
   sessionId?: string;
+  elapsedSeconds?: number;
+  questionIndex?: number;
   tts: {
     isSpeaking: boolean;
     isMuted: boolean;
@@ -66,6 +70,8 @@ export function DualPaneWorkspace({
   isImmersive = true,
   onToggleImmersive,
   sessionId,
+  elapsedSeconds = 0,
+  questionIndex = 1,
   tts,
 }: DualPaneWorkspaceProps) {
   // Media controls state
@@ -353,6 +359,20 @@ export function DualPaneWorkspace({
     return list;
   }, [telemetry]);
 
+  // Formatted elapsed session time string (MM:SS or HH:MM:SS)
+  const formattedElapsedTime = React.useMemo(() => {
+    const totalSecs = Math.max(0, elapsedSeconds);
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    if (mins >= 60) {
+      const hrs = Math.floor(mins / 60);
+      const remMins = mins % 60;
+      return `${pad(hrs)}:${pad(remMins)}:${pad(secs)}`;
+    }
+    return `${pad(mins)}:${pad(secs)}`;
+  }, [elapsedSeconds]);
+
   // Live transcription ticker content (AI speech or user streaming transcript)
   const liveTranscriptText =
     userLiveTranscript ||
@@ -377,17 +397,29 @@ export function DualPaneWorkspace({
         )}
       >
         {/* Top Streamlined Header Bar with Live Status & End & View Feedback button */}
-        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-[#1B2232] text-xs shrink-0">
-          <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 sm:pb-4 border-b border-[#1B2232] text-xs shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-[#E8602E] animate-pulse" />
               <span className="text-slate-200 font-semibold tracking-wide text-xs sm:text-sm">
                 {sessionRole}
               </span>
             </div>
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#181F2C] border border-[#29354A] text-emerald-400 font-mono text-[11px]">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#181F2C] border border-[#29354A] text-emerald-400 font-mono text-[11px]">
               <Radio className="h-3 w-3 animate-pulse" />
               <span>LIVE INTERVIEW</span>
+            </span>
+
+            {/* Preserved Question Index Badge */}
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/25 text-blue-400 font-mono text-[11px]">
+              <span className="font-bold">Q{questionIndex}</span>
+              <span className="text-blue-500/70">/ Probe Phase</span>
+            </span>
+
+            {/* Preserved Elapsed Session Timer */}
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-300 font-mono text-[11px]">
+              <Clock className="h-3 w-3 text-amber-400" />
+              <span>{formattedElapsedTime}</span>
             </span>
           </div>
 
