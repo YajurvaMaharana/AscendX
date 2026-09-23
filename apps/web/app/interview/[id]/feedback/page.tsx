@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { markSessionCompleted, clearActiveSession } from "@/hooks/useInterviewSessionState";
 
 interface FeedbackCategory {
   label: string;
@@ -191,6 +192,13 @@ export default function FeedbackPage() {
       setError(err?.message || "Failed to generate evaluation report.");
     } finally {
       setLoading(false);
+    }
+  }, [sessionId]);
+
+  React.useEffect(() => {
+    if (sessionId) {
+      markSessionCompleted(sessionId);
+      clearActiveSession();
     }
   }, [sessionId]);
 

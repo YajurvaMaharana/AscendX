@@ -43,6 +43,7 @@ import {
   getStoredSessionState,
   useInterviewSessionPersistence,
   markSessionCompleted,
+  clearActiveSession,
 } from "@/hooks/useInterviewSessionState";
 
 interface InterviewResponse {
@@ -148,14 +149,9 @@ function InterviewPageContent() {
   // Vercel AI SDK useChat integration for Edge-powered low-latency real-time streaming
   const {
     messages: chatMessages,
-    input: chatInput,
-    handleInputChange,
-    handleSubmit: handleChatSubmit,
     isLoading: isStreaming,
     setMessages: setChatMessages,
     append,
-    reload,
-    error: chatStreamError,
   } = useChat({
     api: `/api/interviews/${encodeURIComponent(interviewId)}/chat`,
     body: {
@@ -288,6 +284,10 @@ function InterviewPageContent() {
           if (isMounted) {
             if (data.session) {
               setSession(data.session);
+              if (data.session.status === "completed") {
+                markSessionCompleted(interviewId);
+                clearActiveSession();
+              }
               if (data.session.modality === "voice") {
                 setIsVoiceMode(true);
               }
@@ -377,6 +377,7 @@ function InterviewPageContent() {
   const handleEndSession = () => {
     // 1. Mark session completed and clear active session pointer from localStorage
     markSessionCompleted(interviewId);
+    clearActiveSession();
 
     // 2. Explicitly halt text-to-speech audio synthesis
     tts.stop();
