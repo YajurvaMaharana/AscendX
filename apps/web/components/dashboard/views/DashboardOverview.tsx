@@ -36,6 +36,7 @@ import DailyDrillWidget from "@/components/dashboard/DailyDrillWidget";
 import AsyncCoachNotesCard from "@/components/dashboard/AsyncCoachNotesCard";
 import PreFlightModal from "@/components/interview/PreFlightModal";
 import ProminentRecommendationCard from "@/components/dashboard/ProminentRecommendationCard";
+import OverallReadinessSummaryBlock from "@/components/dashboard/OverallReadinessSummaryBlock";
 import { useAuth } from "@/context/AuthContext";
 
 export interface DashboardOverviewProps {
@@ -135,45 +136,15 @@ export default function DashboardOverview({
             </div>
           </div>
 
-          {/* Hero Welcome Banner with High-Impact Metrics */}
-          <div className="p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-slate-900 via-[#1A2232] to-[#121620] text-white shadow-lg space-y-4 sm:space-y-0 sm:flex sm:items-center sm:justify-between gap-6 border border-slate-800">
-            <div className="space-y-1.5 max-w-xl">
-              <div className="flex items-center gap-2 text-xs font-mono text-[#E87A42] uppercase tracking-wider font-semibold">
-                <Target className="w-3.5 h-3.5" />
-                <span>Active Target Track: Senior Full-Stack (L5/Staff)</span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                Welcome Back, {userDisplayName}
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Your interview readiness benchmark is calibrated at <strong className="text-emerald-400">88%</strong>. Address your identified behavioral & concurrency gaps below to unlock Staff-level certification.
-              </p>
-            </div>
-
-            {/* Quick Readiness Metrics Cluster */}
-            <div className="grid grid-cols-3 gap-2.5 sm:gap-3 shrink-0 pt-2 sm:pt-0">
-              <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/10 text-center min-w-[90px]">
-                <span className="block text-[10px] text-slate-400 font-medium">Readiness</span>
-                <span className="text-xl sm:text-2xl font-black text-white">88%</span>
-                <span className="block text-[9px] text-emerald-400 font-semibold mt-0.5">+4.2% wk</span>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/10 text-center min-w-[90px]">
-                <span className="block text-[10px] text-slate-400 font-medium">Streak</span>
-                <span className="text-xl sm:text-2xl font-black text-amber-400 flex items-center justify-center gap-0.5">
-                  <Flame className="w-4 h-4 fill-current" />
-                  <span>4d</span>
-                </span>
-                <span className="block text-[9px] text-slate-400 font-semibold mt-0.5">Consistent</span>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/10 text-center min-w-[90px]">
-                <span className="block text-[10px] text-slate-400 font-medium">Completed</span>
-                <span className="text-xl sm:text-2xl font-black text-white">{initialSessions.length || 8}</span>
-                <span className="block text-[9px] text-slate-400 font-semibold mt-0.5">Mock Loops</span>
-              </div>
-            </div>
-          </div>
+          {/* Central Summary Metric Display (Prominent Headline Readiness Score & Key Indicators) */}
+          <OverallReadinessSummaryBlock
+            score={74}
+            monthlyDelta={12}
+            strongestSkill={{ name: "STAR Storytelling & Framing", score: 92 }}
+            focusArea={{ name: "Action Score & Concurrency Depth", score: 68 }}
+            nextMilestone={{ name: "Staff / L5 Benchmark (85/100)", targetScore: 85 }}
+            userDisplayName={userDisplayName}
+          />
         </div>
 
         {/* ========================================================================= */}
