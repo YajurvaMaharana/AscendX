@@ -28,12 +28,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const existingMessages = await getMessagesBySessionId(sessionId);
     const nextOrder = existingMessages.length + 1;
 
-    // Save candidate's message to Supabase
-    await createMessage({
+    // 1. Immediately insert candidate's record into Supabase with "pending AI response" state
+    const userMsgRecord = await createMessage({
       session_id: sessionId,
       sender_role: 'user',
       content: message.trim(),
       sequence_order: nextOrder,
+      status: 'pending AI response',
     });
 
     let aiResult;
@@ -63,12 +64,19 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       };
     }
 
-    // Save AI interviewer's reply to Supabase
-    await createMessage({
+    // 2. Mark candidate message as completed now that AI response is resolved
+    if (userMsgRecord?.id) {
+      const { updateMessageStatus } = await import('@/lib/services/db.service');
+      await updateMessageStatus(userMsgRecord.id, 'completed');
+    }
+
+    // 3. Save AI interviewer's reply to Supabase with "completed" state
+    const aiMsgRecord = await createMessage({
       session_id: sessionId,
       sender_role: 'ai',
       content: aiResult.message,
       sequence_order: nextOrder + 1,
+      status: 'completed',
     });
 
     return NextResponse.json(
@@ -76,6 +84,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         message: aiResult.message,
         telemetry: aiResult.telemetry,
         evaluation: aiResult.evaluation,
+        userMessageId: userMsgRecord?.id,
+        aiMessageId: aiMsgRecord?.id,
       },
       { status: 200 }
     );

@@ -21,6 +21,7 @@ import {
   Target,
   Sliders,
   LayoutGrid,
+  RotateCcw,
 } from "lucide-react";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { ChatBubble, type ChatMessage } from "@/components/interview/ChatBubble";
@@ -90,6 +91,7 @@ export default function InterviewPage() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [lastFailedMessage, setLastFailedMessage] = React.useState<string | null>(null);
+  const [sessionRestoredNotice, setSessionRestoredNotice] = React.useState<string | null>(null);
 
   // Spoken message tracking for Hands-Free Speech Flow
   const spokenMessageIdsRef = React.useRef<Set<string>>(new Set());
@@ -162,10 +164,18 @@ export default function InterviewPage() {
 
     async function loadSessionData() {
       try {
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("ascendx_active_session_id", interviewId);
+          } catch {}
+        }
+
         const [sessionRes, telemetryRes] = await Promise.all([
           fetch(`/api/interviews/${encodeURIComponent(interviewId)}`),
           fetch(`/api/interviews/${encodeURIComponent(interviewId)}/telemetry`),
         ]);
+
+        let hasLoadedHistory = false;
 
         if (sessionRes.ok) {
           const data = await sessionRes.json();
@@ -177,6 +187,7 @@ export default function InterviewPage() {
               }
             }
             if (Array.isArray(data.messages) && data.messages.length > 0) {
+              hasLoadedHistory = true;
               const formattedMsgs: ChatMessage[] = data.messages.map((m: any, i: number) => ({
                 id: m.id || `msg-${i}`,
                 role: m.sender_role === "ai" ? "assistant" : "user",
@@ -184,6 +195,35 @@ export default function InterviewPage() {
                 timestamp: m.created_at ? new Date(m.created_at) : new Date(),
               }));
               setMessages(formattedMsgs);
+
+              // Check if the last message in history was a user message with pending response state
+              const rawLastMsg = data.messages[data.messages.length - 1];
+              if (rawLastMsg && rawLastMsg.sender_role === "user") {
+                setIsLoading(true);
+                // Trigger AI response generation to resume interrupted answer processing
+                fetch(`/api/interviews/${encodeURIComponent(interviewId)}/message`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ message: rawLastMsg.content }),
+                })
+                  .then(async (res) => {
+                    if (res.ok && isMounted) {
+                      const aiData = await res.json();
+                      const aiMsg: ChatMessage = {
+                        id: aiData.aiMessageId || `ai-${Date.now()}`,
+                        role: "assistant",
+                        content: aiData.message,
+                        timestamp: new Date(),
+                      };
+                      setMessages((prev) => [...prev, aiMsg]);
+                      if (aiData.telemetry) setTelemetry(aiData.telemetry);
+                    }
+                  })
+                  .catch((e) => console.warn("Failed to resume pending response:", e))
+                  .finally(() => {
+                    if (isMounted) setIsLoading(false);
+                  });
+              }
             }
           }
         }
@@ -192,6 +232,15 @@ export default function InterviewPage() {
           const teleData = await telemetryRes.json();
           if (isMounted && teleData.telemetry) {
             setTelemetry(teleData.telemetry);
+          }
+        }
+
+        // Check if there is local draft cache or active database session
+        if (typeof window !== "undefined" && isMounted) {
+          const draftKey = `ascendx_interview_draft_${interviewId}`;
+          const localDraft = localStorage.getItem(draftKey);
+          if (hasLoadedHistory || (localDraft && localDraft.trim().length > 0)) {
+            setSessionRestoredNotice("Active session state and conversation history restored from database & local cache.");
           }
         }
       } catch (err) {
@@ -422,6 +471,22 @@ export default function InterviewPage() {
       {/* ── Real-Time Adaptive Difficulty & Telemetry HUD (Shown only in classic stream mode) ── */}
       {(!isImmersiveMode || activeLayout === "stream") && (
         <div className="px-4 sm:px-6 md:px-8 pt-3 pb-1 max-w-4xl mx-auto w-full space-y-2">
+          {sessionRestoredNotice && (
+            <div className="flex items-center justify-between gap-2.5 px-3.5 py-2 rounded-2xl bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/30 text-xs text-blue-900 dark:text-blue-200 animate-in fade-in duration-300">
+              <div className="flex items-center gap-2">
+                <RotateCcw className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                <span>{sessionRestoredNotice}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSessionRestoredNotice(null)}
+                className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
           <AdaptiveTelemetryHUD telemetry={telemetry} />
 
           {/* Visible Adaptation Reason Notification Banner */}
@@ -454,6 +519,7 @@ export default function InterviewPage() {
             onEndSession={handleEndSession}
             isImmersive={isImmersiveMode}
             onToggleImmersive={() => setIsImmersiveMode(!isImmersiveMode)}
+            sessionId={interviewId}
             tts={tts}
           />
         </div>
@@ -570,6 +636,7 @@ export default function InterviewPage() {
                 disabled={isLoading}
                 onToggleVoiceMode={() => setIsVoiceMode(true)}
                 isVoiceMode={isVoiceMode}
+                sessionId={interviewId}
                 placeholder="Type your answer... (Press Enter to send, Shift+Enter for new line)"
               />
             )}

@@ -29,6 +29,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { stopMediaStream, stopElementMediaStream } from "@/lib/utils/media-cleanup";
+import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 import type { ChatMessage } from "@/components/interview/ChatBubble";
 import type { SessionAdaptiveTelemetry } from "@/lib/services/ai-engine/adaptive-engine.service";
 
@@ -43,6 +44,7 @@ interface DualPaneWorkspaceProps {
   onEndSession?: () => void;
   isImmersive?: boolean;
   onToggleImmersive?: () => void;
+  sessionId?: string;
   tts: {
     isSpeaking: boolean;
     isMuted: boolean;
@@ -63,6 +65,7 @@ export function DualPaneWorkspace({
   onEndSession,
   isImmersive = true,
   onToggleImmersive,
+  sessionId,
   tts,
 }: DualPaneWorkspaceProps) {
   // Media controls state
@@ -76,8 +79,18 @@ export function DualPaneWorkspace({
   const activeStreamRef = useRef<MediaStream | null>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
 
-  // Code assessment editor state
-  const [codeResponse, setCodeResponse] = useState<string>("");
+  // Code assessment editor state with 1000ms debounced local auto-save
+  const {
+    draftText: codeResponse,
+    setDraftText: setCodeResponse,
+    clearDraft,
+    isDraftSaved,
+    isAutoSaving,
+    hasRestoredDraft,
+  } = useAutoSaveDraft({
+    sessionId,
+    debounceMs: 1000,
+  });
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Web Speech recognition for user mic & live transcription
@@ -246,7 +259,7 @@ export function DualPaneWorkspace({
         } catch {}
       }
     };
-  }, [userMicActive]);
+  }, [userMicActive, setCodeResponse]);
 
   // Code formatting helpers
   const handleInsertBraces = () => {
@@ -284,9 +297,13 @@ export function DualPaneWorkspace({
   const handleSubmit = async () => {
     if (!codeResponse.trim() || isLoading) return;
     const submission = codeResponse.trim();
-    setCodeResponse("");
+    clearDraft();
     setUserLiveTranscript("");
-    await onSendMessage(submission);
+    try {
+      await onSendMessage(submission);
+    } catch {
+      setCodeResponse(submission);
+    }
   };
 
   // Handle Enter to submit (Shift+Enter for newline)
@@ -714,16 +731,41 @@ function optimizeExecution(nodes) {
                 />
               </div>
 
-              {/* Bottom Actions: Quick Clear + Direct Submit Button */}
-              <div className="flex items-center justify-between pt-1">
-                <button
-                  type="button"
-                  onClick={() => setCodeResponse("")}
-                  disabled={!codeResponse || isLoading}
-                  className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
-                >
-                  Clear Buffer
-                </button>
+              {/* Bottom Actions: Auto-save status, Quick Clear + Direct Submit Button */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearDraft();
+                      setCodeResponse("");
+                    }}
+                    disabled={!codeResponse || isLoading}
+                    className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
+                  >
+                    Clear Buffer
+                  </button>
+
+                  {/* Debounced Auto-Save status badge */}
+                  {isAutoSaving && (
+                    <span className="flex items-center gap-1 text-[10px] font-mono text-amber-400 animate-pulse">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                      Auto-saving draft...
+                    </span>
+                  )}
+                  {isDraftSaved && !isAutoSaving && codeResponse.trim().length > 0 && (
+                    <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-400">
+                      <Check className="h-2.5 w-2.5" />
+                      Auto-saved locally
+                    </span>
+                  )}
+                  {hasRestoredDraft && codeResponse.trim().length > 0 && !isAutoSaving && (
+                    <span className="flex items-center gap-1 rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-mono text-blue-300 border border-blue-500/30">
+                      <RotateCcw className="h-2.5 w-2.5" />
+                      Restored draft
+                    </span>
+                  )}
+                </div>
 
                 <Button
                   type="button"

@@ -81,26 +81,6 @@ export function useVoiceRecorder(options: VoiceRecorderOptions = {}) {
     });
   }, [transcript, interimTranscript, durationSeconds]);
 
-  // Clean up on unmount or session termination
-  useEffect(() => {
-    const handleGlobalTermination = () => {
-      stopAllMedia();
-    };
-
-    if (typeof window !== "undefined") {
-      window.addEventListener("ascendx:media-session-terminate", handleGlobalTermination);
-      window.addEventListener("beforeunload", handleGlobalTermination);
-    }
-
-    return () => {
-      if (typeof window !== "undefined") {
-        window.removeEventListener("ascendx:media-session-terminate", handleGlobalTermination);
-        window.removeEventListener("beforeunload", handleGlobalTermination);
-      }
-      stopAllMedia();
-    };
-  }, [stopAllMedia]);
-
   const stopAllMedia = useCallback(() => {
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
@@ -133,6 +113,26 @@ export function useVoiceRecorder(options: VoiceRecorderOptions = {}) {
       audioContextRef.current = null;
     }
   }, []);
+
+  // Clean up on unmount or session termination
+  useEffect(() => {
+    const handleGlobalTermination = () => {
+      stopAllMedia();
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("ascendx:media-session-terminate", handleGlobalTermination);
+      window.addEventListener("beforeunload", handleGlobalTermination);
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("ascendx:media-session-terminate", handleGlobalTermination);
+        window.removeEventListener("beforeunload", handleGlobalTermination);
+      }
+      stopAllMedia();
+    };
+  }, [stopAllMedia]);
 
   // Volume & visualizer loop
   const startAudioAnalysis = (stream: MediaStream) => {

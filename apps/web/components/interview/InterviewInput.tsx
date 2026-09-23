@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { SendHorizonal, Loader2, Mic } from "lucide-react";
+import { SendHorizonal, Loader2, Mic, Check, Clock, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 import { cn } from "@/lib/utils";
 
 export interface InterviewInputProps {
@@ -13,6 +14,9 @@ export interface InterviewInputProps {
   maxHeight?: number;
   onToggleVoiceMode?: () => void;
   isVoiceMode?: boolean;
+  sessionId?: string;
+  storageKey?: string;
+  onDraftChange?: (draft: string) => void;
 }
 
 export function InterviewInput({
@@ -23,9 +27,29 @@ export function InterviewInput({
   maxHeight = 200,
   onToggleVoiceMode,
   isVoiceMode = false,
+  sessionId,
+  onDraftChange,
 }: InterviewInputProps) {
-  const [text, setText] = React.useState("");
+  const {
+    draftText,
+    setDraftText,
+    clearDraft,
+    isDraftSaved,
+    isAutoSaving,
+    hasRestoredDraft,
+  } = useAutoSaveDraft({
+    sessionId,
+    debounceMs: 1000,
+  });
+
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+
+  // Notify parent if draft text changes
+  React.useEffect(() => {
+    if (onDraftChange) {
+      onDraftChange(draftText);
+    }
+  }, [draftText, onDraftChange]);
 
   // Auto-resize the textarea height based on content
   const adjustHeight = React.useCallback(() => {
@@ -39,14 +63,14 @@ export function InterviewInput({
 
   React.useEffect(() => {
     adjustHeight();
-  }, [text, adjustHeight]);
+  }, [draftText, adjustHeight]);
 
   const handleSend = async () => {
-    const trimmed = text.trim();
+    const trimmed = draftText.trim();
     if (!trimmed || disabled) return;
 
-    // Reset input state immediately before triggering send
-    setText("");
+    // Clear local storage draft immediately upon submission
+    clearDraft();
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
@@ -54,7 +78,8 @@ export function InterviewInput({
     try {
       await onSend(trimmed);
     } catch {
-      // If parent fails and wants to restore text, we can allow parent or user to retype
+      // If parent fails, restore draft to allow retry
+      setDraftText(trimmed);
     }
   };
 
@@ -65,7 +90,7 @@ export function InterviewInput({
     }
   };
 
-  const canSubmit = text.trim().length > 0 && !disabled;
+  const canSubmit = draftText.trim().length > 0 && !disabled;
 
   return (
     <div
@@ -107,8 +132,8 @@ export function InterviewInput({
           <textarea
             ref={textareaRef}
             rows={1}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
+            value={draftText}
+            onChange={(e) => setDraftText(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={disabled}
             placeholder={disabled ? "AI interviewer is responding..." : placeholder}
@@ -141,7 +166,7 @@ export function InterviewInput({
           </div>
         </form>
 
-        <div className="mt-1.5 flex items-center justify-between px-2 text-[11px] text-muted-foreground/80">
+        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 px-2 text-[11px] text-muted-foreground/80">
           <div className="flex items-center gap-2">
             <span>
               Press <kbd className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">Enter ↵</kbd> to send,{" "}
@@ -160,11 +185,31 @@ export function InterviewInput({
               </>
             )}
           </div>
-          {disabled && (
-            <span className="flex items-center gap-1 font-medium text-primary">
-              <Loader2 className="h-3 w-3 animate-spin" /> Thinking...
-            </span>
-          )}
+
+          <div className="flex items-center gap-2">
+            {/* Auto-Save & Restoration Feedback Badge */}
+            {isAutoSaving && (
+              <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400 animate-pulse">
+                <Clock className="h-3 w-3" /> Auto-saving draft...
+              </span>
+            )}
+            {isDraftSaved && !isAutoSaving && draftText.trim().length > 0 && (
+              <span className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+                <Check className="h-3 w-3" /> Auto-saved (1000ms debounce)
+              </span>
+            )}
+            {hasRestoredDraft && draftText.trim().length > 0 && !isAutoSaving && (
+              <span className="flex items-center gap-1 rounded bg-blue-500/10 px-1.5 py-0.5 font-medium text-blue-600 dark:text-blue-400">
+                <RotateCcw className="h-2.5 w-2.5" /> Restored draft
+              </span>
+            )}
+
+            {disabled && (
+              <span className="flex items-center gap-1 font-medium text-primary">
+                <Loader2 className="h-3 w-3 animate-spin" /> Thinking...
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>

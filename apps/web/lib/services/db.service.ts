@@ -657,6 +657,7 @@ export async function updateSession(
 export async function createMessage(data: InterviewMessageInsert): Promise<InterviewMessage> {
   const messageId = generateUUID();
   const client = getSupabaseAdminClient();
+  const initialStatus = data.status || (data.sender_role === 'user' ? 'pending AI response' : 'completed');
 
   if (client && isValidUUID(data.session_id)) {
     try {
@@ -668,6 +669,7 @@ export async function createMessage(data: InterviewMessageInsert): Promise<Inter
           sender_role: data.sender_role,
           content: data.content,
           sequence_order: data.sequence_order,
+          status: initialStatus,
         })
         .select()
         .single();
@@ -680,6 +682,26 @@ export async function createMessage(data: InterviewMessageInsert): Promise<Inter
         return message as InterviewMessage;
       }
       if (error) {
+        // Retry insert without status column if database table doesn't have status column yet
+        const { data: retryMsg, error: retryErr } = await client
+          .from('interview_messages')
+          .insert({
+            id: messageId,
+            session_id: data.session_id,
+            sender_role: data.sender_role,
+            content: data.content,
+            sequence_order: data.sequence_order,
+          })
+          .select()
+          .single();
+        if (!retryErr && retryMsg) {
+          const msgWithStatus = { ...retryMsg, status: initialStatus };
+          const msgs = inMemoryMessages.get(data.session_id) || [];
+          msgs.push(msgWithStatus as InterviewMessage);
+          msgs.sort((a, b) => a.sequence_order - b.sequence_order);
+          inMemoryMessages.set(data.session_id, msgs);
+          return msgWithStatus as InterviewMessage;
+        }
         console.warn('[db.service] Supabase createMessage notice:', error.message);
       }
     } catch (err: any) {
@@ -694,6 +716,7 @@ export async function createMessage(data: InterviewMessageInsert): Promise<Inter
     sender_role: data.sender_role,
     content: data.content,
     sequence_order: data.sequence_order,
+    status: initialStatus,
     created_at: new Date().toISOString(),
   };
   const msgs = inMemoryMessages.get(data.session_id) || [];
@@ -701,6 +724,32 @@ export async function createMessage(data: InterviewMessageInsert): Promise<Inter
   msgs.sort((a, b) => a.sequence_order - b.sequence_order);
   inMemoryMessages.set(data.session_id, msgs);
   return fallbackMessage;
+}
+
+export async function updateMessageStatus(
+  messageId: string,
+  status: string
+): Promise<void> {
+  const client = getSupabaseAdminClient();
+  if (client && isValidUUID(messageId)) {
+    try {
+      await client
+        .from('interview_messages')
+        .update({ status })
+        .eq('id', messageId);
+    } catch (err: any) {
+      console.warn('[db.service] updateMessageStatus error:', err?.message);
+    }
+  }
+
+  // Update in inMemoryMessages
+  inMemoryMessages.forEach((msgs, sessionId) => {
+    const target = msgs.find((m) => m.id === messageId);
+    if (target) {
+      target.status = status;
+      inMemoryMessages.set(sessionId, msgs);
+    }
+  });
 }
 
 export async function getMessagesBySessionId(sessionId: string): Promise<InterviewMessage[]> {

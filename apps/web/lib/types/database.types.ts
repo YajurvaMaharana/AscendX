@@ -143,6 +143,7 @@ export interface InterviewMessage {
   sender_role: SenderRole;
   content: string;
   sequence_order: number;
+  status?: 'pending AI response' | 'completed' | 'delivered' | string;
   created_at: string;
 }
 
@@ -200,6 +201,7 @@ export interface InterviewMessageInsert {
   sender_role: SenderRole;
   content: string;
   sequence_order: number;
+  status?: 'pending AI response' | 'completed' | 'delivered' | string;
 }
 
 export interface FeedbackReportInsert {
