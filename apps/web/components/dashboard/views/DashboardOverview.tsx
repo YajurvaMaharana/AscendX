@@ -192,21 +192,12 @@ export default function DashboardOverview({
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
             {/* Competency Growth Trajectory Chart (Col 1-7) */}
-            <div className="lg:col-span-7 p-5 bg-white dark:bg-[#181E29] rounded-2xl border border-slate-200/80 dark:border-[#242C3B] shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                <div>
-                  <span className="text-xs font-bold text-slate-900 dark:text-white block">
-                    Session-by-Session Growth Velocity
-                  </span>
-                  <span className="text-[10px] text-slate-400">
-                    Comparing System Design vs Behavioral Scores
-                  </span>
-                </div>
-                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                  +14% 30-Day Lift
-                </span>
-              </div>
-              <CompetencyGrowthLineChart />
+            <div className="lg:col-span-7 p-5 bg-white dark:bg-[#181E29] rounded-2xl border border-slate-200/80 dark:border-[#242C3B] shadow-sm">
+              <CompetencyGrowthLineChart
+                title="Progress Over Time"
+                subtitle="Session-by-session score trajectory & competency growth"
+                initialFilter="30d"
+              />
             </div>
 
             {/* Longitudinal Weakness Heatmap (Col 8-12) */}
@@ -236,7 +227,9 @@ export default function DashboardOverview({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch pt-1">
             {/* AI STAR Rubric Feedback Card (Col 1-6) */}
             <div className="lg:col-span-6">
-              <StarRubricFeedbackCard />
+              <StarRubricFeedbackCard
+                onPracticeAction={() => router.push("/interview/new?type=behavioral&focus=action")}
+              />
             </div>
 
             {/* Executive Consensus & Answer Rewrite (Col 7-12) */}
