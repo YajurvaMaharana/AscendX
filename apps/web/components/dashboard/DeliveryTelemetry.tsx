@@ -49,7 +49,7 @@ export default function DeliveryTelemetry() {
   return (
     <div className="w-full space-y-2">
       <h3 className="text-xs font-bold text-slate-900 dark:text-white tracking-tight">
-        Delivery Telemetry
+        Speaking analysis
       </h3>
       <div className="grid grid-cols-2 gap-2">
         <TelemetryBox
@@ -60,21 +60,21 @@ export default function DeliveryTelemetry() {
           barHeights={[2, 3, 5, 4, 3]}
         />
         <TelemetryBox
-          label="Filler Ratio"
+          label="Filler words"
           value="1.8% / Low"
           barColor="orange"
           bgColor="olive"
           barHeights={[1, 2, 4, 3, 2]}
         />
         <TelemetryBox
-          label="Vocal Clarity"
+          label="Speech clarity"
           value="95% / High"
           barColor="green"
           bgColor="olive"
           barHeights={[2, 4, 5, 3, 4]}
         />
         <TelemetryBox
-          label="Response Latency"
+          label="Response time"
           value="0.8s / Optimal"
           barColor="orange"
           bgColor="bronze"

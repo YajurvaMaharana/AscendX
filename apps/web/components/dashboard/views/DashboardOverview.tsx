@@ -34,7 +34,6 @@ import WeaknessHeatmapCard from "@/components/dashboard/WeaknessHeatmapCard";
 import ReadinessScoreWidget from "@/components/dashboard/ReadinessScoreWidget";
 import DailyDrillWidget from "@/components/dashboard/DailyDrillWidget";
 import AsyncCoachNotesCard from "@/components/dashboard/AsyncCoachNotesCard";
-import PreFlightModal from "@/components/interview/PreFlightModal";
 import ProminentRecommendationCard from "@/components/dashboard/ProminentRecommendationCard";
 import OverallReadinessSummaryBlock from "@/components/dashboard/OverallReadinessSummaryBlock";
 import { useAuth } from "@/context/AuthContext";
@@ -57,15 +56,10 @@ export default function DashboardOverview({
   const router = useRouter();
   const { user } = useAuth();
 
-  // Interactive local states
-  const [isVoiceActive, setIsVoiceActive] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedGraduation, setSelectedGraduation] = useState("All graduations");
-  const [isGraduationOpen, setIsGraduationOpen] = useState(false);
-  const [isAdaptiveOn, setIsAdaptiveOn] = useState(true);
+  // Simplified interactive local states
+  const [selectedLevel, setSelectedLevel] = useState("L5 Senior (Staff)");
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [isLaunching, setIsLaunching] = useState(false);
-  const [showPreFlightModal, setShowPreFlightModal] = useState(false);
 
   const userDisplayName = user?.email ? user.email.split("@")[0] : "Candidate";
 
@@ -74,13 +68,10 @@ export default function DashboardOverview({
     router.push("/interview/new");
   };
 
-  const graduationOptions = [
-    "All graduations",
-    "Senior Full-Stack (L5/Staff)",
-    "Backend & Distributed Systems",
-    "Frontend & UI Architecture",
-    "System Design & Scale",
-    "Behavioral (STAR Method)",
+  const levelOptions = [
+    { value: "L4 Mid-Level", label: "L4 · Mid-Level Engineer" },
+    { value: "L5 Senior (Staff)", label: "L5 · Senior / Staff Benchmark" },
+    { value: "L6 Principal / Lead", label: "L6 · Principal / Tech Lead" },
   ];
 
   return (
@@ -92,50 +83,6 @@ export default function DashboardOverview({
         {/* 1. WELCOME & READINESS SUMMARY (Top Visual Anchor)                        */}
         {/* ========================================================================= */}
         <div className="space-y-4">
-          {/* Top Bar Utilities */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Adaptive Telemetry Active</span>
-              <span className="text-slate-300 dark:text-slate-700">·</span>
-              <span>Model: Gemini 3.8 Flash</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* Pre-Flight Diagnostic Button */}
-              <button
-                type="button"
-                onClick={() => setShowPreFlightModal(true)}
-                className="flex items-center gap-1.5 bg-white dark:bg-[#1C2230] px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-[#E87A42] hover:border-[#E87A42]/50 transition-colors shadow-2xs cursor-pointer"
-                title="Verify camera, microphone, and network speed"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-[#E87A42]" />
-                <span>Pre-Flight Diagnostic</span>
-              </button>
-
-              {/* Voice Active Switch */}
-              <div className="flex items-center gap-2 bg-white dark:bg-[#1C2230] px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Voice
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setIsVoiceActive(!isVoiceActive)}
-                  className={`w-8 h-4.5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out focus:outline-hidden cursor-pointer ${
-                    isVoiceActive ? "bg-[#E87A42]" : "bg-slate-300 dark:bg-slate-700"
-                  }`}
-                  aria-label="Toggle Voice Active"
-                >
-                  <div
-                    className={`bg-white w-3.5 h-3.5 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
-                      isVoiceActive ? "translate-x-3.5" : "translate-x-0"
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
-          </div>
-
           {/* Central Summary Metric Display (Prominent Headline Readiness Score & Key Indicators) */}
           <OverallReadinessSummaryBlock
             score={74}
@@ -189,18 +136,22 @@ export default function DashboardOverview({
               </p>
             </div>
 
-            {/* Filter controls */}
+            {/* Streamlined Interview Level Selector */}
             <div className="flex items-center gap-2">
-              <div className="relative w-40 sm:w-48">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Filter skills..."
-                  className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-[#1C2230] border border-slate-200/80 dark:border-slate-700/80 rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-hidden focus:border-[#E87A42] transition-colors"
-                />
-              </div>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 hidden sm:inline">
+                Interview Level:
+              </span>
+              <select
+                value={selectedLevel}
+                onChange={(e) => setSelectedLevel(e.target.value)}
+                className="px-3 py-1.5 bg-white dark:bg-[#1C2230] border border-slate-200/80 dark:border-slate-700/80 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-hidden focus:border-[#E87A42] transition-colors cursor-pointer"
+              >
+                {levelOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -426,19 +377,6 @@ export default function DashboardOverview({
           </div>
         )}
       </div>
-
-      {/* ── Pre-Flight Diagnostic Modal ── */}
-      <PreFlightModal
-        isOpen={showPreFlightModal}
-        sessionRole="Senior Full-Stack (L5/Staff)"
-        interviewType="Technical & Behavioral"
-        defaultAudioOnly={!isVoiceActive}
-        onProceed={(results) => {
-          setShowPreFlightModal(false);
-          handleLaunchInterview();
-        }}
-        onClose={() => setShowPreFlightModal(false)}
-      />
     </div>
   );
 }

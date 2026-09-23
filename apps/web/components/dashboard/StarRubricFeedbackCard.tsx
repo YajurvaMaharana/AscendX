@@ -26,7 +26,7 @@ export default function StarRubricFeedbackCard() {
         <div className="flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5 text-[#E87A42]" />
           <h3 className="text-xs font-bold text-slate-900 dark:text-white tracking-tight">
-            AI Coaching: STAR Rubric Feedback
+            Answer structure feedback
           </h3>
         </div>
         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40">

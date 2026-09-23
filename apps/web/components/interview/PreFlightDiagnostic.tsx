@@ -472,17 +472,17 @@ export default function PreFlightDiagnostic({
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#FFF0E6] dark:bg-[#2F2119] text-[#E87A42] text-[11px] font-bold tracking-wide uppercase">
               <ShieldCheck className="w-3.5 h-3.5" />
-              Pre-Flight Diagnostic
+              Readiness Check
             </span>
             <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
               Target Track: <strong className="text-slate-800 dark:text-slate-200">{sessionRole}</strong>
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Hardware & Network Telemetry Verification
+            Readiness Check & Equipment Verification
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Verify active audio detection, camera framing, and network throughput before connecting to the live simulation room.
+            Verify active audio detection, camera framing, and connection before starting your live interview session.
           </p>
         </div>
 

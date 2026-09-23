@@ -25,7 +25,7 @@ interface CompetencyGrowthLineChartProps {
 
 export default function CompetencyGrowthLineChart({
   data = defaultData,
-  title = "Competency Score Growth Over Time",
+  title = "Progress over time",
   subtitle,
 }: CompetencyGrowthLineChartProps) {
   const [activeToggle, setActiveToggle] = useState(true);

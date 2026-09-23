@@ -43,7 +43,7 @@ export default function PreFlightModal({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close pre-flight diagnostic"
+          aria-label="Close readiness check"
           className="absolute -top-3 -right-3 sm:top-4 sm:right-4 z-10 w-8 h-8 rounded-full bg-white dark:bg-[#1C2230] text-slate-500 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-md transition-colors cursor-pointer"
         >
           <X className="w-4 h-4" />

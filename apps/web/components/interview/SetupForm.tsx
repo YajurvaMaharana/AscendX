@@ -1090,7 +1090,7 @@ export default function SetupForm() {
                     )}
                   >
                     <Mic className="w-3.5 h-3.5" />
-                    <span>Voice-Active</span>
+                    <span>Voice practice enabled</span>
                   </button>
                   <button
                     type="button"
@@ -1155,11 +1155,11 @@ export default function SetupForm() {
               )}
             </button>
 
-            {/* Under-button telemetry badges & Pre-Flight diagnostic trigger */}
+            {/* Under-button telemetry badges & Readiness check trigger */}
             <div className="flex flex-wrap items-center justify-between px-1 gap-2 text-[11px] font-semibold text-slate-600 dark:text-slate-400 pt-1">
               <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                 <Mic className="w-3.5 h-3.5 text-[#E87A42]" />
-                <span>{selectedModality === "voice" ? "Voice-Active Input & Output Enabled" : "Interactive Chat & Code Mode"}</span>
+                <span>{selectedModality === "voice" ? "Voice practice enabled" : "Interactive Chat & Code Mode"}</span>
               </div>
 
               <button
@@ -1168,7 +1168,7 @@ export default function SetupForm() {
                 className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#E87A42] hover:text-[#d85322] dark:text-[#FB923C] cursor-pointer hover:underline"
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-[#E87A42]" />
-                <span>Run Pre-Flight Hardware Check</span>
+                <span>Readiness check (verify mic & camera)</span>
               </button>
             </div>
           </div>
