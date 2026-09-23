@@ -299,7 +299,7 @@ export default function InsightsTrendsView({
 
           <div className="p-4 rounded-2xl bg-white dark:bg-[#181E29] border border-slate-100 dark:border-[#242C3B] shadow-2xs space-y-1">
             <span className="text-[10.5px] font-semibold text-slate-400 block">
-              Filler Word Ratio
+              Filler words
             </span>
             <div className="flex items-baseline gap-1.5">
               <span className="text-xl font-extrabold text-slate-900 dark:text-white">1.8%</span>
@@ -308,7 +308,7 @@ export default function InsightsTrendsView({
               </span>
             </div>
             <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-              Baseline was 5.8%
+              Low — helping your answers sound confident
             </span>
           </div>
 

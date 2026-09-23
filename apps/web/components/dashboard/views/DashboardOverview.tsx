@@ -156,34 +156,17 @@ export default function DashboardOverview({
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-            {/* Left: Skill Radar Profile (Col 1-5) */}
+            {/* Left: Skill Comparison Horizontal Bars / Radar Profile (Col 1-5) */}
             <div className="lg:col-span-5 p-5 bg-white dark:bg-[#181E29] rounded-2xl border border-slate-200/80 dark:border-[#242C3B] shadow-sm flex flex-col justify-between">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                <span className="text-xs font-bold text-slate-900 dark:text-white">
-                  Competency Radar (L5 Benchmark)
-                </span>
-                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                  3 of 4 Domains on Target
-                </span>
-              </div>
-              <div className="py-4 flex items-center justify-center">
-                <SkillReadinessRadar
-                  communication={88}
-                  techDepth={78}
-                  deliveryPace={84}
-                  starStorytelling={92}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-center text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
-                <div className="p-2 rounded-xl bg-slate-50 dark:bg-[#131822]">
-                  <span className="text-slate-400 block text-[10px]">Top Strength</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">STAR Framing (92%)</span>
-                </div>
-                <div className="p-2 rounded-xl bg-slate-50 dark:bg-[#131822]">
-                  <span className="text-slate-400 block text-[10px]">Primary Gap</span>
-                  <span className="font-bold text-amber-600 dark:text-amber-400">Tech Depth (78%)</span>
-                </div>
-              </div>
+              <SkillReadinessRadar
+                communication={78}
+                techDepth={72}
+                starStructure={61}
+                confidence={84}
+                title="Core Competency Scores"
+                subtitle="Performance breakdown across core interview dimensions"
+                defaultView="bars"
+              />
             </div>
 
             {/* Right: Multi-Axis Readiness Breakdown (Col 6-12) */}
