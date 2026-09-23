@@ -38,6 +38,7 @@ import PreFlightModal from "@/components/interview/PreFlightModal";
 import type { PreFlightCheckResults } from "@/components/interview/PreFlightDiagnostic";
 import type { SessionAdaptiveTelemetry } from "@/lib/services/ai-engine/adaptive-engine.service";
 import type { JobDescriptionParsedData } from "@/lib/types/database.types";
+import { useChat } from "@ai-sdk/react";
 import {
   getStoredSessionState,
   useInterviewSessionPersistence,
@@ -116,22 +117,6 @@ function InterviewPageContent() {
     return storedInitial?.isImmersiveMode ?? true;
   });
 
-  const [messages, setMessages] = React.useState<ChatMessage[]>(() => {
-    if (storedInitial?.messages && storedInitial.messages.length > 0) {
-      return storedInitial.messages;
-    }
-    return [
-      {
-        id: "initial-greeting",
-        role: "assistant",
-        content:
-          "Hello! I am your AI Interviewer today. Welcome to your mock interview session.\n\nTo get started, please tell me a bit about your background or simply say \"Ready\" when you would like me to ask the first question.",
-        timestamp: new Date(),
-      },
-    ];
-  });
-
-  const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [lastFailedMessage, setLastFailedMessage] = React.useState<string | null>(null);
   const [sessionRestoredNotice, setSessionRestoredNotice] = React.useState<string | null>(() => {
@@ -150,6 +135,77 @@ function InterviewPageContent() {
     return "Alex Vance (Lead)";
   }, [session?.persona, storedInitial?.persona]);
 
+  // Spoken message tracking for Hands-Free Speech Flow
+  const spokenMessageIdsRef = React.useRef<Set<string>>(new Set());
+
+  // Text-To-Speech Interviewer Engine
+  const tts = useTextToSpeech({
+    defaultAutoPlay: true,
+    defaultRate: 1.0,
+    personaId: session?.persona || "tech-grinder",
+  });
+
+  // Vercel AI SDK useChat integration for Edge-powered low-latency real-time streaming
+  const {
+    messages: chatMessages,
+    input: chatInput,
+    handleInputChange,
+    handleSubmit: handleChatSubmit,
+    isLoading: isStreaming,
+    setMessages: setChatMessages,
+    append,
+    reload,
+    error: chatStreamError,
+  } = useChat({
+    api: `/api/interviews/${encodeURIComponent(interviewId)}/chat`,
+    body: {
+      sessionId: interviewId,
+      role: session?.role || storedInitial?.personaDisplayName || "Full Stack AI Engineer",
+      seniority: session?.jd_data?.seniority_level || "Senior",
+      interviewType: session?.type || "technical",
+      persona: personaDisplayName,
+      jdData: session?.jd_data,
+    },
+    initialMessages:
+      storedInitial?.messages && storedInitial.messages.length > 0
+        ? storedInitial.messages.map((m, i) => ({
+            id: m.id || `msg-${i}`,
+            role: (m.role === "assistant" || m.role === "interviewer" || m.role === "system"
+              ? "assistant"
+              : "user") as "assistant" | "user",
+            content: m.content,
+          }))
+        : [
+            {
+              id: "initial-greeting",
+              role: "assistant",
+              content:
+                "Hello! I am your AI Interviewer today. Welcome to your mock interview session.\n\nTo get started, please tell me a bit about your background or simply say \"Ready\" when you would like me to ask the first question.",
+            },
+          ],
+    onFinish: (message) => {
+      // Auto-speak new response when completed
+      if (tts.autoPlayEnabled && !tts.isMuted) {
+        tts.speak(message.content);
+      }
+    },
+    onError: (err) => {
+      setError(`Stream connection error: ${err.message || "Failed to complete streaming response."}`);
+    },
+  });
+
+  // Format Vercel AI SDK messages for UI chat frames
+  const messages: ChatMessage[] = React.useMemo(() => {
+    return chatMessages.map((m) => ({
+      id: m.id,
+      role: m.role === "assistant" ? "assistant" : "user",
+      content: m.content,
+      timestamp: m.createdAt ? new Date(m.createdAt) : new Date(),
+    }));
+  }, [chatMessages]);
+
+  const isLoading = isStreaming;
+
   // Unified persistent session management: tracks elapsed time and persists state
   const { elapsedSeconds, questionIndex } = useInterviewSessionPersistence({
     sessionId: interviewId,
@@ -160,16 +216,6 @@ function InterviewPageContent() {
     activeLayout,
     isImmersiveMode,
     isVoiceMode,
-  });
-
-  // Spoken message tracking for Hands-Free Speech Flow
-  const spokenMessageIdsRef = React.useRef<Set<string>>(new Set());
-
-  // Text-To-Speech Interviewer Engine
-  const tts = useTextToSpeech({
-    defaultAutoPlay: true,
-    defaultRate: 1.0,
-    personaId: session?.persona || "tech-grinder",
   });
 
   // Latest AI message text for quick replay
@@ -248,42 +294,14 @@ function InterviewPageContent() {
             }
             if (Array.isArray(data.messages) && data.messages.length > 0) {
               hasLoadedHistory = true;
-              const formattedMsgs: ChatMessage[] = data.messages.map((m: any, i: number) => ({
-                id: m.id || `msg-${i}`,
-                role: m.sender_role === "ai" ? "assistant" : "user",
-                content: m.content,
-                timestamp: m.created_at ? new Date(m.created_at) : new Date(),
-              }));
-              setMessages(formattedMsgs);
-
-              // Check if the last message in history was a user message with pending response state
-              const rawLastMsg = data.messages[data.messages.length - 1];
-              if (rawLastMsg && rawLastMsg.sender_role === "user") {
-                setIsLoading(true);
-                // Trigger AI response generation to resume interrupted answer processing
-                fetch(`/api/interviews/${encodeURIComponent(interviewId)}/message`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ message: rawLastMsg.content }),
-                })
-                  .then(async (res) => {
-                    if (res.ok && isMounted) {
-                      const aiData = await res.json();
-                      const aiMsg: ChatMessage = {
-                        id: aiData.aiMessageId || `ai-${Date.now()}`,
-                        role: "assistant",
-                        content: aiData.message,
-                        timestamp: new Date(),
-                      };
-                      setMessages((prev) => [...prev, aiMsg]);
-                      if (aiData.telemetry) setTelemetry(aiData.telemetry);
-                    }
-                  })
-                  .catch((e) => console.warn("Failed to resume pending response:", e))
-                  .finally(() => {
-                    if (isMounted) setIsLoading(false);
-                  });
-              }
+              setChatMessages(
+                data.messages.map((m: any, i: number) => ({
+                  id: m.id || `msg-${i}`,
+                  role: (m.sender_role === "ai" ? "assistant" : "user") as "assistant" | "user",
+                  content: m.content,
+                  createdAt: m.created_at ? new Date(m.created_at) : new Date(),
+                }))
+              );
             }
           }
         }
@@ -330,67 +348,21 @@ function InterviewPageContent() {
 
     // Stop ongoing speech before user speaks/sends
     tts.stop();
-
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: content.trim(),
-      timestamp: new Date(),
-    };
-
-    // Optimistically update conversation
-    setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
     setError(null);
     setLastFailedMessage(null);
 
-    const endpoint = `/api/interviews/${encodeURIComponent(interviewId)}/message`;
-
     try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ message: userMessage.content }),
+      await append({
+        role: "user",
+        content: content.trim(),
       });
-
-      if (!response.ok) {
-        let errMsg = `Server returned status ${response.status}`;
-        try {
-          const errData = await response.json();
-          if (errData?.message) {
-            errMsg = errData.message;
-          }
-        } catch {
-          // ignore json parse error
-        }
-        throw new Error(errMsg);
-      }
-
-      const data: InterviewResponse = await response.json();
-
-      if (data.telemetry) {
-        setTelemetry(data.telemetry);
-      }
-
-      const aiReply: ChatMessage = {
-        id: `ai-${Date.now()}`,
-        role: "assistant",
-        content: data.message,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, aiReply]);
-    } catch (err) {
+    } catch (err: any) {
       const errorMessage =
         err instanceof Error
           ? err.message
-          : "Network connection issue. Please try again.";
+          : "Streaming connection issue. Please try again.";
       setError(`Failed to receive response: ${errorMessage}`);
-      setLastFailedMessage(userMessage.content);
-    } finally {
-      setIsLoading(false);
+      setLastFailedMessage(content);
     }
   };
 

@@ -12,7 +12,10 @@
     "lint": "npm run lint --prefix apps/web"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.78",
+    "@ai-sdk/react": "^4.0.115",
     "@google/genai": "^2.23.0",
+    "ai": "^7.0.112",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1"
   }
