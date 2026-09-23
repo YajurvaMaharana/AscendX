@@ -83,8 +83,12 @@ export interface ResumeParsedData {
 export interface JobDescriptionParsedData {
   job_title: string;
   company_name?: string;
+  title?: string;
+  company?: string;
   seniority_level: 'Junior' | 'Mid' | 'Senior' | 'Staff/Principal' | 'Lead/Manager' | string;
   required_skills: string[];
+  top_technical_skills?: string[];
+  top_soft_skills?: string[];
   preferred_skills: string[];
   core_responsibilities: string[];
   critical_keywords: string[];

@@ -325,31 +325,60 @@ export default function JobDescriptionInput({
             </p>
           </div>
 
-          {/* Extracted Required Skills Pills */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <Tag className="w-3.5 h-3.5 text-[#E87A42]" />
-                Target Skills Being Tested ({parsedJD.required_skills?.length || 0}):
-              </span>
+          {/* Extracted Industry-Specific Framework Breakdown */}
+          <div className="space-y-3 pt-1">
+            {/* Top 5 Technical Skills */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-[#E87A42]" />
+                  <span>Top 5 Technical Competencies (Evaluated in Sequence):</span>
+                </span>
+                <span className="text-[10px] font-mono text-[#E8602E] bg-[#FFF6F0] dark:bg-[#2A1D17] px-2 py-0.5 rounded-md border border-[#FDBA74]/40 font-semibold">
+                  T1 - T5
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {(parsedJD.top_technical_skills && parsedJD.top_technical_skills.length > 0
+                  ? parsedJD.top_technical_skills
+                  : parsedJD.required_skills?.slice(0, 5) || []
+                ).map((skill, idx) => (
+                  <span
+                    key={`tech-${idx}`}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800"
+                  >
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 font-mono">T{idx + 1}</span>
+                    <span>{skill}</span>
+                  </span>
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {parsedJD.required_skills?.map((skill, idx) => (
-                <span
-                  key={idx}
-                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800"
-                >
-                  {skill}
+
+            {/* Top 3 Soft Skills */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Top 3 Behavioral &amp; STAR Competencies:</span>
                 </span>
-              ))}
-              {parsedJD.critical_keywords?.slice(0, 4).map((kw, idx) => (
-                <span
-                  key={`kw-${idx}`}
-                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-[#FFF6F0] dark:bg-[#2A1D17] text-[#C2410C] dark:text-[#FB923C] border border-[#FDBA74]/50"
-                >
-                  {kw}
+                <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-md border border-blue-300 dark:border-blue-800 font-semibold">
+                  S1 - S3
                 </span>
-              ))}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {(parsedJD.top_soft_skills && parsedJD.top_soft_skills.length > 0
+                  ? parsedJD.top_soft_skills
+                  : ['Cross-functional Alignment', 'Conflict Resolution', 'Technical Ownership']
+                ).map((skill, idx) => (
+                  <span
+                    key={`soft-${idx}`}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-800"
+                  >
+                    <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 font-mono">S{idx + 1}</span>
+                    <span>{skill}</span>
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
 

@@ -48,6 +48,10 @@ export interface FollowUpEvaluationOptions {
   persona?: string;
   targetTopic?: string;
   jdContext?: string;
+  frameworkSkills?: {
+    technical?: string[];
+    soft?: string[];
+  };
 }
 
 /**
@@ -61,7 +65,17 @@ export function buildDynamicFollowUpSystemPrompt(options: FollowUpEvaluationOpti
   const topic = options.targetTopic || 'System Architecture & Engineering Depth';
   const jdContext = options.jdContext ? `\nTarget Role Context: ${options.jdContext}` : '';
 
-  return `You are an expert AI Interviewer named "${persona}" evaluating a ${seniority} ${role} candidate in a real-time ${type.toUpperCase()} interview.${jdContext}
+  let frameworkText = '';
+  if (options.frameworkSkills?.technical?.length || options.frameworkSkills?.soft?.length) {
+    const tech = options.frameworkSkills.technical || [];
+    const soft = options.frameworkSkills.soft || [];
+    frameworkText = `\nEXTRACTED SKILLS FRAMEWORK (Sequential testing order):
+Technical Skills: ${tech.map((s, i) => `[T${i + 1}] ${s}`).join(', ') || 'N/A'}
+Soft Skills: ${soft.map((s, i) => `[S${i + 1}] ${s}`).join(', ') || 'N/A'}
+Always advance along this framework in sequence.`;
+  }
+
+  return `You are an expert AI Interviewer named "${persona}" evaluating a ${seniority} ${role} candidate in a real-time ${type.toUpperCase()} interview.${jdContext}${frameworkText}
 
 ACTIVE FOCUS AREA: ${topic}
 
@@ -85,7 +99,7 @@ YOUR OBJECTIVES:
    - IF "is_answer_sufficient" is FALSE:
      Your "next_response" MUST immediately generate a targeted, probing follow-up that directly challenges the candidate on their missing metrics, concrete operational trade-offs, or architectural details. Never accept generic answers like "I would use a database" or "We scaled the service" without asking for the exact database type, indexing strategy, or quantified percentage improvement.
    - IF "is_answer_sufficient" is TRUE:
-     Your "next_response" should acknowledge their strong response and transition smoothly to an advanced constraint (e.g., 50x traffic spike, cross-region replication delay) or pivot to the next core competency topic.
+     Your "next_response" should acknowledge their strong response and transition smoothly to an advanced constraint (e.g., 50x traffic spike, cross-region replication delay) or pivot to the next core competency topic in the framework sequence.
 
 4. CONSTRAINTS & TONE:
    - Stay strictly in character as the interviewer.
@@ -112,7 +126,7 @@ export async function evaluateAndGenerateDynamicFollowUp(
   // Format the full conversation history for context preservation
   const conversationMessages = messages.filter((m) => m.role !== 'system');
   const contents = conversationMessages.map((msg) => ({
-    role: msg.role === 'assistant' || msg.role === 'interviewer' ? 'model' : 'user',
+    role: msg.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: msg.content }],
   }));
 

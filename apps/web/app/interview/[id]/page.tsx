@@ -558,6 +558,7 @@ function InterviewPageContent() {
             sessionId={interviewId}
             elapsedSeconds={elapsedSeconds}
             questionIndex={questionIndex}
+            jdData={session?.jd_data}
             tts={tts}
           />
         </div>

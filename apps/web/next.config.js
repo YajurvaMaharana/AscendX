@@ -69,7 +69,6 @@ const resolvedSupabaseKey = resolveSupabaseKey();
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
   reactStrictMode: false,
   env: {
     NEXT_PUBLIC_SUPABASE_URL: resolvedSupabaseUrl,

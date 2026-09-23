@@ -33,7 +33,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       interviewType: interviewType || session?.type || 'technical',
       persona: persona || session?.persona || 'Alex Vance (Lead Technical Interviewer)',
       targetTopic: topic,
-      jdContext: session?.jd_data?.title ? `${session.jd_data.title} at ${session.jd_data.company || 'Tech Corp'}` : undefined,
+      jdContext: (session?.jd_data?.job_title || session?.jd_data?.title)
+        ? `${session.jd_data.job_title || session.jd_data.title} at ${session.jd_data.company_name || session.jd_data.company || 'Tech Corp'}`
+        : undefined,
     });
 
     return NextResponse.json(evaluationResult, { status: 200 });

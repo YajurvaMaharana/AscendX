@@ -23,9 +23,55 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       contextSupplement = `\nContext: Interviewing for ${jdData.title || targetRole} at ${jdData.company || 'Tech Corp'}.`;
     }
 
+    let frameworkInjection = '';
+    if (jdData) {
+      const topTech: string[] = Array.isArray(jdData.top_technical_skills) && jdData.top_technical_skills.length > 0
+        ? jdData.top_technical_skills.slice(0, 5)
+        : Array.isArray(jdData.required_skills) && jdData.required_skills.length > 0
+        ? jdData.required_skills.slice(0, 5)
+        : ['Core System Architecture', 'Concurrency & Performance', 'Data Structures & Algorithms', 'Database Internals', 'API & Integration'];
+
+      const topSoft: string[] = Array.isArray(jdData.top_soft_skills) && jdData.top_soft_skills.length > 0
+        ? jdData.top_soft_skills.slice(0, 3)
+        : ['Cross-Functional Alignment', 'Technical Conflict Resolution', 'Ownership Under Ambiguity'];
+
+      frameworkInjection = `
+═══════════════════════════════════════════════════════════════════════════════
+TARGET JOB DESCRIPTION (JD) EXTRACTED SKILLS FRAMEWORK
+═══════════════════════════════════════════════════════════════════════════════
+Target Role: ${jdData.job_title || jdData.title || targetRole} ${jdData.company_name || jdData.company ? `at ${jdData.company_name || jdData.company}` : ''}
+Calibrated Seniority: ${jdData.seniority_level || targetSeniority}
+${jdData.calibration_summary ? `Interviewer Calibration Directive: "${jdData.calibration_summary}"` : ''}
+
+EXTRACTED TOP 5 TECHNICAL COMPETENCIES:
+[T1] ${topTech[0] || 'Core Mechanics & Languages'}
+[T2] ${topTech[1] || 'Algorithms & Data Structures'}
+[T3] ${topTech[2] || 'System Architecture & Scaling'}
+[T4] ${topTech[3] || 'Reliability, Concurrency & Fault Tolerance'}
+[T5] ${topTech[4] || 'Domain Stack & Optimization'}
+
+EXTRACTED TOP 3 SOFT & BEHAVIORAL COMPETENCIES:
+[S1] ${topSoft[0] || 'Cross-Functional Collaboration'}
+[S2] ${topSoft[1] || 'Technical Conflict Resolution'}
+[S3] ${topSoft[2] || 'Ownership, Ambiguity & Execution'}
+
+SEQUENTIAL SKILL TESTING PROTOCOL:
+Throughout the conversation turns, systematically probe and test the candidate across the extracted framework list in order:
+1. Turn Phase 1-2: Probe Technical Skills [T1] & [T2] (Code/algorithm depth, trade-offs, internal mechanics).
+2. Turn Phase 3-4: Probe Technical Skills [T3] & [T4] (High-concurrency scaling, database locking, failure recovery).
+3. Turn Phase 5: Probe Technical Skill [T5] (Domain-specific optimizations & edge cases).
+4. Turn Phase 6-7: Probe Soft Skills [S1] & [S2] via STAR method (Situation, Task, Action, Result).
+5. Turn Phase 8+: Probe Soft Skill [S3] (Ambiguity, engineering trade-offs, candidate questions).
+
+CRITICAL RULE:
+Every question MUST directly evaluate a specific competency ([T1]-[T5] or [S1]-[S3]) from the framework list. Never ask generic, uncalibrated questions.
+`;
+    }
+
     const systemPrompt = `You are an expert AI Technical and Behavioral Interviewer named "${activePersona}" conducting a high-standard mock interview session (Session ID: ${sessionId}).
 Target Candidate Profile: ${targetSeniority} ${targetRole}.
 Interview Mode: ${type.toUpperCase()}.${contextSupplement}
+${frameworkInjection}
 
 Core Interview Principles & Dynamic Follow-Up Evaluation:
 1. Response Resolution Evaluation:

@@ -215,6 +215,39 @@ export default function SetupForm() {
   } = useAuth();
   const initialPersonaParam = searchParams.get("persona") as PersonaId | null;
   const initialModeParam = searchParams.get("mode") as string | null;
+  const initialTypeParam = searchParams.get("type");
+  const initialDifficultyParam = searchParams.get("difficulty");
+  const initialTopicParam = searchParams.get("topic");
+  const initialDurationParam = searchParams.get("duration");
+
+  const resolvedInitialType = React.useMemo<"Technical" | "HR" | "System Design" | "Mixed">(() => {
+    if (initialTypeParam) {
+      const lower = initialTypeParam.toLowerCase();
+      if (lower === "behavioral" || lower === "hr") return "HR";
+      if (lower.includes("system")) return "System Design";
+      if (lower.includes("mix")) return "Mixed";
+      return "Technical";
+    }
+    return initialPersonaParam === "hr-partner" ? "HR" : "Technical";
+  }, [initialTypeParam, initialPersonaParam]);
+
+  const resolvedInitialDifficulty = React.useMemo<"Easy" | "Medium" | "Hard">(() => {
+    if (initialDifficultyParam) {
+      const lower = initialDifficultyParam.toLowerCase();
+      if (lower === "easy" || lower === "beginner") return "Easy";
+      if (lower === "hard" || lower === "advanced") return "Hard";
+      return "Medium";
+    }
+    return "Medium";
+  }, [initialDifficultyParam]);
+
+  const resolvedInitialDuration = React.useMemo<number>(() => {
+    if (initialDurationParam) {
+      const num = parseInt(initialDurationParam, 10);
+      if (!isNaN(num) && num > 0) return num <= 15 ? 15 : num <= 30 ? 30 : num <= 45 ? 45 : 60;
+    }
+    return 30;
+  }, [initialDurationParam]);
 
   // Single unified resume state derived from context
   const effectiveResume = uploadedResume;
@@ -393,11 +426,11 @@ export default function SetupForm() {
   } = useForm<InterviewSetupValues>({
     resolver: zodResolver(interviewSetupSchema),
     defaultValues: {
-      type: initialPersonaParam === "hr-partner" ? "HR" : "Technical",
-      role: defaultRole,
-      difficulty: "Medium",
-      persona: initialPersonaParam || "tech-grinder",
-      duration: 30,
+      type: resolvedInitialType,
+      role: initialTopicParam || defaultRole,
+      difficulty: resolvedInitialDifficulty,
+      persona: initialPersonaParam || (resolvedInitialType === "HR" ? "hr-partner" : "tech-grinder"),
+      duration: resolvedInitialDuration,
       language: "English",
       practiceMode: initialModeParam === "simulation" ? "simulation_day" : "standard",
       modality: "voice",

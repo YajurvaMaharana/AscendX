@@ -524,9 +524,13 @@ export async function generateNextAdaptiveResponse(
       role: session.role,
       seniority: session.jd_data?.seniority_level || 'Senior',
       interviewType: session.type,
-      persona: session.persona,
+      persona: session.persona || undefined,
       targetTopic: updatedTelemetry.currentTopic,
-      jdContext: session.jd_data?.title ? `${session.jd_data.title} at ${session.jd_data.company || 'Tech Corp'}` : undefined,
+      jdContext: session.jd_data?.job_title ? `${session.jd_data.job_title} at ${session.jd_data.company_name || 'Tech Corp'}` : undefined,
+      frameworkSkills: session.jd_data ? {
+        technical: session.jd_data.top_technical_skills || session.jd_data.required_skills?.slice(0, 5),
+        soft: session.jd_data.top_soft_skills || ['Cross-functional Collaboration', 'Technical Conflict Resolution', 'Ownership & Pacing'],
+      } : undefined,
     });
 
     if (structuredFollowUp?.next_response) {

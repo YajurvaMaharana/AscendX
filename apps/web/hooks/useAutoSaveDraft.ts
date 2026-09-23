@@ -10,7 +10,7 @@ export interface UseAutoSaveDraftOptions {
 
 export interface UseAutoSaveDraftReturn {
   draftText: string;
-  setDraftText: (text: string) => void;
+  setDraftText: (value: string | ((prev: string) => string)) => void;
   clearDraft: () => void;
   isDraftSaved: boolean;
   isAutoSaving: boolean;
@@ -74,18 +74,22 @@ export function useAutoSaveDraft({
     }
   }, [storageKey]);
 
-  const setDraftText = useCallback((newText: string) => {
-    setDraftTextState(newText);
-    setIsAutoSaving(true);
-    setIsDraftSaved(false);
+  const setDraftText = useCallback((value: string | ((prev: string) => string)) => {
+    setDraftTextState((prev) => {
+      const resolved = typeof value === 'function' ? value(prev) : value;
+      setIsAutoSaving(true);
+      setIsDraftSaved(false);
 
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
 
-    debounceTimerRef.current = setTimeout(() => {
-      saveToLocalStorage(newText);
-    }, debounceMs);
+      debounceTimerRef.current = setTimeout(() => {
+        saveToLocalStorage(resolved);
+      }, debounceMs);
+
+      return resolved;
+    });
   }, [debounceMs, saveToLocalStorage]);
 
   // 3. Clear draft utility (invoked when candidate sends message)
