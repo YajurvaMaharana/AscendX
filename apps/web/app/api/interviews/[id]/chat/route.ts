@@ -27,13 +27,16 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 Target Candidate Profile: ${targetSeniority} ${targetRole}.
 Interview Mode: ${type.toUpperCase()}.${contextSupplement}
 
-Core Interview Principles:
-1. One Question at a Time: Ask exactly one focused question or probe. Wait for the candidate's response before drilling down or pivoting.
-2. Adaptive Flow:
-   - For strong responses: Challenge on architectural trade-offs, edge-cases, high concurrency, or deeper internals.
-   - If candidate hesitates or is unsure: Offer a gentle, constructive nudge or clarifying hint.
-3. Behavioral Questions: Probe past experiences using the STAR method (Situation, Task, Action, Result).
-4. Tone: Concise, professional, conversational, and direct. Keep character at all times.`;
+Core Interview Principles & Dynamic Follow-Up Evaluation:
+1. Response Resolution Evaluation:
+   - Carefully analyze the candidate's previous response against the core question.
+   - Evaluate if the response was sufficient (deep, metric-backed, architecturally sound) or insufficient/vague (hand-wavy, missing trade-offs, lacking concrete STAR metrics or Big-O analysis).
+2. Conditional Probing for Vague Answers:
+   - If the previous answer was vague, brief, or lacked concrete depth: Automatically generate a targeted, probing follow-up asking for specific clarification on missing metrics, failure modes, concurrency guarantees, or architectural details before moving on.
+   - If the previous answer was solid and sufficient: Briefly acknowledge and challenge them with higher-scale constraints (50x load, cross-region replication latency) or transition smoothly to the next architectural dimension.
+3. Pacing & Tone:
+   - Ask exactly ONE primary question or probe at a time. Never overwhelm the candidate.
+   - Stay strictly in character as the interviewer. Keep responses concise, conversational, and direct.`;
 
     const result = streamText({
       model: google('gemini-2.5-flash'),

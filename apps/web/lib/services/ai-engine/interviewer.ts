@@ -15,6 +15,10 @@ import {
   truncateContext,
 } from './context.service';
 import type { ChatMessage, PromptVariables } from './context.service';
+import {
+  evaluateAndGenerateDynamicFollowUp,
+  type DynamicFollowUpResult,
+} from './follow-up.service';
 import type { InterviewType, Difficulty, JobDescriptionParsedData } from '../../types/database.types';
 import { getSessionById, getUserById } from '../db.service';
 import { buildResumePromptGrounding } from '../resume-parser.service';
@@ -506,21 +510,28 @@ export async function generateNextAdaptiveResponse(
   );
 
   let responseText = '';
+  let structuredFollowUp: DynamicFollowUpResult | null = null;
 
   try {
     const history = await buildMessageHistory(sessionId);
 
     const fullContext: ChatMessage[] = [
-      { role: 'system', content: systemPrompt },
       ...history,
       { role: 'user', content: userMessage },
     ];
 
-    const truncated = truncateContext(fullContext, {
-      maxMessages: MAX_CONTEXT_MESSAGES,
+    structuredFollowUp = await evaluateAndGenerateDynamicFollowUp(fullContext, {
+      role: session.role,
+      seniority: session.jd_data?.seniority_level || 'Senior',
+      interviewType: session.type,
+      persona: session.persona,
+      targetTopic: updatedTelemetry.currentTopic,
+      jdContext: session.jd_data?.title ? `${session.jd_data.title} at ${session.jd_data.company || 'Tech Corp'}` : undefined,
     });
 
-    responseText = await callGeminiAPI(truncated);
+    if (structuredFollowUp?.next_response) {
+      responseText = structuredFollowUp.next_response;
+    }
   } catch (err: any) {
     console.warn('[interviewer] Fallback for adaptive next response:', err?.message);
 
