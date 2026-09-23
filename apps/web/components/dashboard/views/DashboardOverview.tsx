@@ -36,6 +36,7 @@ import DailyDrillWidget from "@/components/dashboard/DailyDrillWidget";
 import AsyncCoachNotesCard from "@/components/dashboard/AsyncCoachNotesCard";
 import ProminentRecommendationCard from "@/components/dashboard/ProminentRecommendationCard";
 import OverallReadinessSummaryBlock from "@/components/dashboard/OverallReadinessSummaryBlock";
+import DashboardEmptyState from "@/components/dashboard/DashboardEmptyState";
 import { useAuth } from "@/context/AuthContext";
 
 export interface DashboardOverviewProps {

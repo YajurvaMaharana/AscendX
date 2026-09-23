@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { TrendingUp, Calendar, ArrowUpRight, CheckCircle2, Sparkles, Filter } from "lucide-react";
+import DashboardEmptyState from "@/components/dashboard/DashboardEmptyState";
 
 export interface SessionDataPoint {
   id: string;
@@ -254,7 +255,14 @@ export default function CompetencyGrowthLineChart({
         </div>
       </div>
 
-      {/* 2. Contextual Summary Header Banner directly above the chart */}
+      {filteredData.length === 0 ? (
+        <DashboardEmptyState
+          type="no_time_data"
+          onResetFilter={() => setFilter("all")}
+        />
+      ) : (
+        <>
+          {/* 2. Contextual Summary Header Banner directly above the chart */}
       <div className="p-2.5 sm:p-3 rounded-xl bg-[#FFF0E6] dark:bg-[#261B14] border border-[#E87A42]/20 dark:border-[#E87A42]/30 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-[#E87A42] shrink-0" />
@@ -447,6 +455,8 @@ export default function CompetencyGrowthLineChart({
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

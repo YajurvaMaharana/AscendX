@@ -25,6 +25,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import MicPermissionDeniedState from "@/components/interview/MicPermissionDeniedState";
 
 export interface PreFlightCheckResults {
   micGranted: boolean;
@@ -508,6 +509,16 @@ export default function PreFlightDiagnostic({
           </div>
         </div>
       </div>
+
+      {/* Microphone Permission Denied Inline Troubleshooting */}
+      {micPermission === "denied" && (
+        <div className="w-full">
+          <MicPermissionDeniedState
+            onRetry={() => initMediaStream(selectedAudioId, selectedVideoId, isAudioOnly)}
+            onContinueTextOnly={onCancel}
+          />
+        </div>
+      )}
 
       {/* ── Main Diagnostics Grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
