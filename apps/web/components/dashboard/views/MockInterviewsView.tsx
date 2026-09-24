@@ -25,6 +25,7 @@ import {
 import { PERSONAS } from "@/types/persona";
 import type { PersonaId } from "@/types/persona";
 import PreFlightModal from "@/components/interview/PreFlightModal";
+import { useSessionArchive } from "@/hooks/useSessionArchive";
 
 export interface MockInterviewsViewProps {
   initialSessions?: Array<{
@@ -119,10 +120,18 @@ export default function MockInterviewsView({
   const [isLaunching, setIsLaunching] = useState(false);
   const [showPreFlightModal, setShowPreFlightModal] = useState(false);
 
-  // History filters
-  const [searchFilter, setSearchFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "in_progress">("all");
-  const [difficultyFilter, setDifficultyFilter] = useState<string>("all");
+  // Session Archive Data Fetching & Hydration Hook
+  const {
+    sessions,
+    filteredSessions,
+    searchFilter,
+    setSearchFilter,
+    statusFilter,
+    setStatusFilter,
+    difficultyFilter,
+    setDifficultyFilter,
+    resetFilters,
+  } = useSessionArchive(initialSessions);
 
   const currentPreset = ROLE_PRESETS.find((r) => r.id === selectedRolePreset) || ROLE_PRESETS[0];
 
@@ -136,24 +145,6 @@ export default function MockInterviewsView({
     params.set("adaptive", isAdaptiveEnabled ? "true" : "false");
     router.push(`/interview/new?${params.toString()}`);
   };
-
-  // Filtered session records
-  const filteredSessions = useMemo(() => {
-    return initialSessions.filter((sess) => {
-      const matchesSearch =
-        !searchFilter ||
-        sess.role.toLowerCase().includes(searchFilter.toLowerCase()) ||
-        sess.difficulty.toLowerCase().includes(searchFilter.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "completed" && sess.status === "completed") ||
-        (statusFilter === "in_progress" && sess.status !== "completed");
-      const matchesDiff =
-        difficultyFilter === "all" ||
-        sess.difficulty.toLowerCase() === difficultyFilter.toLowerCase();
-      return matchesSearch && matchesStatus && matchesDiff;
-    });
-  }, [initialSessions, searchFilter, statusFilter, difficultyFilter]);
 
   return (
     <div className="w-full min-h-[calc(100vh-5rem)] bg-[#ECEEF2] dark:bg-[#0B0F15] py-3 sm:py-5 px-2 sm:px-4 lg:px-6 transition-colors duration-300">
@@ -188,7 +179,7 @@ export default function MockInterviewsView({
             <div className="px-3.5 py-2 rounded-xl bg-white dark:bg-[#1C2230] border border-slate-200/80 dark:border-slate-800 text-center">
               <span className="text-[10px] text-slate-400 block font-medium">Completed Mocks</span>
               <span className="text-sm font-extrabold text-slate-900 dark:text-white">
-                {initialSessions.length > 0 ? initialSessions.length : 12}
+                {sessions.length}
               </span>
             </div>
             <div className="px-3.5 py-2 rounded-xl bg-white dark:bg-[#1C2230] border border-slate-200/80 dark:border-slate-800 text-center">
@@ -443,10 +434,15 @@ export default function MockInterviewsView({
         <div className="bg-[#F9FAFC] dark:bg-[#151922] border border-slate-200/80 dark:border-[#222B3A] rounded-[28px] p-4 sm:p-6 lg:p-7 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-slate-800 pb-3">
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
-                Mock Interview Records & Performance
-              </h2>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                  Past Sessions Archive ({sessions.length})
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                  Synchronized
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                 Review detailed transcripts, rubrics, and playback from past simulation sessions.
               </p>
             </div>
@@ -467,7 +463,7 @@ export default function MockInterviewsView({
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="px-3 py-1.5 rounded-xl bg-white dark:bg-[#1C2230] border border-slate-200/80 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 font-medium focus:outline-hidden"
+                className="px-3 py-1.5 rounded-xl bg-white dark:bg-[#1C2230] border border-slate-200/80 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 font-medium focus:outline-hidden cursor-pointer"
               >
                 <option value="all">All Statuses</option>
                 <option value="completed">Completed</option>
@@ -477,7 +473,7 @@ export default function MockInterviewsView({
               <select
                 value={difficultyFilter}
                 onChange={(e) => setDifficultyFilter(e.target.value)}
-                className="px-3 py-1.5 rounded-xl bg-white dark:bg-[#1C2230] border border-slate-200/80 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 font-medium focus:outline-hidden"
+                className="px-3 py-1.5 rounded-xl bg-white dark:bg-[#1C2230] border border-slate-200/80 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 font-medium focus:outline-hidden cursor-pointer"
               >
                 <option value="all">All Levels</option>
                 <option value="medium">Medium</option>
@@ -489,14 +485,27 @@ export default function MockInterviewsView({
 
           {/* Sessions List / Table */}
           {filteredSessions.length === 0 ? (
-            <div className="p-8 text-center bg-white dark:bg-[#181E29] rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
+            <div className="p-8 text-center bg-white dark:bg-[#181E29] rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 space-y-3">
               <Sparkles className="w-6 h-6 text-[#E87A42] mx-auto opacity-75" />
               <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                No mock interviews match your filter
+                {searchFilter || statusFilter !== "all" || difficultyFilter !== "all"
+                  ? "No mock interviews found matching search filter"
+                  : "No mock sessions in archive"}
               </p>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                Ready to calibrate your performance? Select a role track above and launch your first adaptive session.
+                {searchFilter || statusFilter !== "all" || difficultyFilter !== "all"
+                  ? "Try clearing your search term or adjusting filter options to see stored sessions."
+                  : "Ready to calibrate your performance? Select a role track above and launch your first adaptive session."}
               </p>
+              {(searchFilter || statusFilter !== "all" || difficultyFilter !== "all") && (
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="min-h-[44px] px-4 py-2 rounded-xl bg-[#E87A42] text-white text-xs font-bold hover:bg-[#d85322] transition-colors cursor-pointer"
+                >
+                  Reset Search &amp; Filters
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">

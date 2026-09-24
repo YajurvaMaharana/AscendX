@@ -24,6 +24,7 @@ import ReadinessScoreWidget from "@/components/dashboard/ReadinessScoreWidget";
 import ProminentRecommendationCard from "@/components/dashboard/ProminentRecommendationCard";
 import OverallReadinessSummaryBlock from "@/components/dashboard/OverallReadinessSummaryBlock";
 import { useAuth } from "@/context/AuthContext";
+import { useSessionArchive } from "@/hooks/useSessionArchive";
 
 export interface DashboardOverviewProps {
   initialSessions?: Array<{
@@ -42,6 +43,9 @@ export default function DashboardOverview({
 }: DashboardOverviewProps) {
   const router = useRouter();
   const { user } = useAuth();
+
+  // Hydrate session archive records
+  const { sessions } = useSessionArchive(initialSessions);
 
   // Simplified interactive local states
   const [selectedLevel, setSelectedLevel] = useState("L5 Senior (Staff)");
@@ -255,7 +259,7 @@ export default function DashboardOverview({
         </div>
 
         {/* Past Sessions Drawer Toggle */}
-        {initialSessions.length > 0 && (
+        {sessions.length > 0 && (
           <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800">
             <button
               type="button"
@@ -264,7 +268,7 @@ export default function DashboardOverview({
             >
               <History className="w-4 h-4 text-[#E87A42]" aria-hidden="true" />
               <span>
-                {showHistoryDrawer ? "Hide" : "View"} Recent Practice Sessions ({initialSessions.length})
+                {showHistoryDrawer ? "Hide" : "View"} Past Sessions Archive ({sessions.length})
               </span>
               <ChevronDown
                 className={`w-3.5 h-3.5 transition-transform ${
@@ -276,7 +280,7 @@ export default function DashboardOverview({
 
             {showHistoryDrawer && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-3">
-                {initialSessions.slice(0, 6).map((sess) => (
+                {sessions.slice(0, 6).map((sess) => (
                   <div
                     key={sess.id}
                     className="p-3.5 bg-white dark:bg-[#1C2230] rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between text-xs shadow-2xs"
