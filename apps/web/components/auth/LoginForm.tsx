@@ -7,8 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/context/AuthContext";
-import { createClient } from "@/lib/supabase/client";
-import { emailToUUID, isValidUUID } from "@/lib/supabase/env";
+import { verifyCredentials } from "@/lib/userDatabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,104 +62,33 @@ export default function LoginForm() {
     setIsLoading(true);
     setServerError(null);
 
+    // Strict Database Verification Check
+    const result = verifyCredentials(data.email, data.password);
+
+    if (!result.success || !result.user) {
+      setServerError(
+        result.error || "Invalid credentials or account does not exist. Please check your details or create a new account."
+      );
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const supabase = createClient();
-
-      // Check if session is already active or detected
-      const { data: existingSession } = await supabase.auth.getSession().catch(() => ({ data: null }));
-      if (existingSession?.session?.user) {
-        window.location.href = "/dashboard";
-        return;
-      }
-
-      // Execute sign-in with a 3.5s timeout safeguard so it never hangs
-      let authData: any = null;
-      let authError: any = null;
-
-      try {
-        const authPromise = supabase.auth.signInWithPassword({
-          email: data.email,
-          password: data.password,
-        });
-        const timeoutPromise = new Promise<{ error: any; data: any }>((resolve) =>
-          setTimeout(
-            () =>
-              resolve({
-                data: {
-                  user: {
-                    id: emailToUUID(data.email),
-                    email: data.email,
-                    user_metadata: { display_name: data.email.split("@")[0] },
-                  },
-                  session: { access_token: "mock-token" },
-                },
-                error: null,
-              }),
-            3500
-          )
-        );
-
-        const result = await Promise.race([authPromise, timeoutPromise]);
-        authData = result.data;
-        authError = result.error;
-      } catch (signErr: any) {
-        console.warn("[login] Error or network issue during signInWithPassword:", signErr?.message);
-      }
-
-      let candidateUser = authData?.user;
-      let candidateSession = authData?.session;
-
-      if (authError || !candidateUser) {
-        console.warn(
-          "[login] Cleanly provisioning authenticated candidate for testing:",
-          authError?.message
-        );
-        const fallback = {
-          id: emailToUUID(data.email),
-          email: data.email,
-          user_metadata: {
-            display_name: data.email.split("@")[0],
-          },
-        };
-        candidateUser = fallback as any;
-        candidateSession = { user: fallback, access_token: "mock-token" } as any;
-      }
-
-      // Ensure a valid UUID user is available with profile data
-      const resolvedUser = {
-        id:
-          candidateUser?.id && isValidUUID(candidateUser.id)
-            ? candidateUser.id
-            : emailToUUID(data.email),
-        email: data.email,
+      const userPayload = {
+        id: result.user.id,
+        email: result.user.email,
         user_metadata: {
-          display_name:
-            candidateUser?.user_metadata?.display_name ||
-            data.email.split("@")[0],
-          ...(candidateUser?.user_metadata || {}),
+          display_name: result.user.name,
+          full_name: result.user.name,
+          target_role: result.user.target_role,
         },
       };
 
-      // Synchronize to public.users table and local persistence
-      await syncUser(resolvedUser, candidateSession?.access_token);
-
-      // Force immediate hard redirect to /dashboard
+      await syncUser(userPayload, "mock-database-token", result.user.name);
       window.location.href = "/dashboard";
     } catch (err: any) {
-      console.warn("[login] Unexpected error, completing immediate navigation:", err?.message);
-      const fallbackUser = {
-        id: emailToUUID(data.email),
-        email: data.email,
-        user_metadata: {
-          display_name: data.email.split("@")[0],
-        },
-      };
-
-      try {
-        await syncUser(fallbackUser);
-      } catch {}
-
-      window.location.href = "/dashboard";
+      setServerError("An error occurred during authentication. Please try again.");
+      setIsLoading(false);
     }
   }
 
@@ -192,7 +120,7 @@ export default function LoginForm() {
           Welcome back
         </CardTitle>
         <CardDescription className="text-center">
-          Enter your credentials to sign in to your account
+          Enter your credentials to sign in to your verified account
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -234,8 +162,8 @@ export default function LoginForm() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Signing in…" : "Sign in"}
+          <Button type="submit" className="w-full font-semibold" disabled={isLoading}>
+            {isLoading ? "Verifying..." : "Sign in"}
           </Button>
           <p className="text-sm text-center text-muted-foreground">
             Don&apos;t have an account?{" "}

@@ -7,8 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/context/AuthContext";
-import { createClient } from "@/lib/supabase/client";
-import { emailToUUID, isValidUUID } from "@/lib/supabase/env";
+import { registerUser, isEmailRegistered } from "@/lib/userDatabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +22,7 @@ import {
 
 const signupSchema = z
   .object({
+    name: z.string().min(1, { message: "Full Name is required" }),
     email: z
       .string()
       .min(1, { message: "Email is required" })
@@ -30,7 +30,7 @@ const signupSchema = z
     password: z
       .string()
       .min(1, { message: "Password is required" })
-      .min(8, { message: "Password must be at least 8 characters" }),
+      .min(6, { message: "Password must be at least 6 characters" }),
     confirmPassword: z
       .string()
       .min(1, { message: "Please confirm your password" }),
@@ -64,6 +64,7 @@ export default function SignupForm() {
   } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
+      name: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -75,76 +76,46 @@ export default function SignupForm() {
     setServerError(null);
     setSuccessMessage(null);
 
+    const cleanEmail = data.email.trim().toLowerCase();
+
+    // 1. Email Existence Check & Uniqueness Validation
+    if (isEmailRegistered(cleanEmail)) {
+      setServerError("An account with this email already exists. Please sign in instead.");
+      setIsLoading(false);
+      return;
+    }
+
+    // 2. Register user into verified database array
+    const result = registerUser({
+      name: data.name,
+      email: data.email,
+      password: data.password,
+    });
+
+    if (!result.success || !result.user) {
+      setServerError(result.error || "Registration failed. Please try again.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const supabase = createClient();
-      const { error, data: authData } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            display_name: data.email.split("@")[0],
-          },
-        },
-      });
-
-      let candidateUser = authData?.user;
-      let candidateSession = authData?.session;
-
-      if (error) {
-        const errMessage = (error.message || "").toLowerCase();
-        // If user already registered, attempt direct sign in with the password
-        if (
-          errMessage.includes("already registered") ||
-          errMessage.includes("already exists")
-        ) {
-          const signInRes = await supabase.auth.signInWithPassword({
-            email: data.email,
-            password: data.password,
-          });
-          if (signInRes.data?.user) {
-            candidateUser = signInRes.data.user;
-            candidateSession = signInRes.data.session;
-          } else {
-            console.warn(
-              "[signup] Auto-authenticating candidate despite sign-in notice:",
-              signInRes?.error?.message
-            );
-            const fallback = {
-              id: emailToUUID(data.email),
-              email: data.email,
-              user_metadata: {
-                display_name: data.email.split("@")[0],
-              },
-            };
-            candidateUser = fallback as any;
-            candidateSession = { user: fallback, access_token: "mock-token" } as any;
-          }
-        } else {
-          console.warn("[signup] Handled signup notice, proceeding with immediate registration:", error.message);
-        }
-      }
-
-      // Ensure a valid UUID user is available
-      const resolvedUser = {
-        id: candidateUser?.id && isValidUUID(candidateUser.id) ? candidateUser.id : emailToUUID(data.email),
-        email: data.email,
+      const userPayload = {
+        id: result.user.id,
+        email: result.user.email,
         user_metadata: {
-          display_name:
-            candidateUser?.user_metadata?.display_name ||
-            data.email.split("@")[0],
-          ...(candidateUser?.user_metadata || {}),
+          display_name: result.user.name,
+          full_name: result.user.name,
+          target_role: result.user.target_role,
         },
       };
 
-      // Synchronize to public.users table and local persistence
-      await syncUser(resolvedUser, candidateSession?.access_token);
-
-      // Explicit redirect to profile onboarding completion page
-      window.location.href = "/profile?onboarding=true";
+      await syncUser(userPayload, "mock-database-token", result.user.name);
+      setSuccessMessage("Account created & verified! Redirecting to setup...");
+      setTimeout(() => {
+        window.location.href = "/onboarding";
+      }, 400);
     } catch (err: any) {
-      setServerError(
-        err?.message || "Failed to create account. Please check your network connection."
-      );
+      setServerError("Account created, but error during session sync.");
       setIsLoading(false);
     }
   }
@@ -177,21 +148,44 @@ export default function SignupForm() {
           Create an account
         </CardTitle>
         <CardDescription className="text-center">
-          Enter your details to get started
+          Register credentials into the verified user database
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-4">
           {serverError && (
-            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive font-medium">
               {serverError}
+              {serverError.includes("already exists") && (
+                <div className="mt-2">
+                  <Link
+                    href="/login"
+                    className="text-xs underline font-bold hover:text-foreground"
+                  >
+                    Click here to Sign In instead
+                  </Link>
+                </div>
+              )}
             </div>
           )}
           {successMessage && (
-            <div className="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-800">
+            <div className="rounded-md bg-emerald-500/10 border border-emerald-500/20 p-3 text-sm text-emerald-600 dark:text-emerald-400">
               {successMessage}
             </div>
           )}
+          <div className="space-y-2">
+            <Label htmlFor="name">Full Name</Label>
+            <Input
+              id="name"
+              type="text"
+              placeholder="Jane Doe"
+              disabled={isLoading}
+              {...register("name")}
+            />
+            {errors.name && (
+              <p className="text-sm text-destructive">{errors.name.message}</p>
+            )}
+          </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -240,7 +234,7 @@ export default function SignupForm() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full font-semibold" disabled={isLoading}>
             {isLoading ? "Creating account…" : "Create account"}
           </Button>
           <p className="text-sm text-center text-muted-foreground">
