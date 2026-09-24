@@ -18,7 +18,7 @@ import CompetencyGrowthLineChart from "@/components/dashboard/CompetencyGrowthLi
 import DeliveryTelemetry from "@/components/dashboard/DeliveryTelemetry";
 import StarRubricFeedbackCard from "@/components/dashboard/StarRubricFeedbackCard";
 import ExecutiveSummaryCard from "@/components/dashboard/ExecutiveSummaryCard";
-import AnswerRewriteCard from "@/components/dashboard/AnswerRewriteCard";
+import InterviewConsensusCard from "@/components/dashboard/InterviewConsensusCard";
 import WeaknessHeatmapCard from "@/components/dashboard/WeaknessHeatmapCard";
 import ReadinessScoreWidget from "@/components/dashboard/ReadinessScoreWidget";
 import ProminentRecommendationCard from "@/components/dashboard/ProminentRecommendationCard";
@@ -219,11 +219,9 @@ export default function DashboardOverview({
               />
             </div>
 
-            {/* Executive Consensus & Answer Rewrite (Col 7-12) */}
-            <div className="lg:col-span-6 space-y-6">
-              <AnswerRewriteCard
-                onPracticeAgain={() => router.push("/interview/new?type=behavioral")}
-              />
+            {/* Interview Consensus & Executive Summary (Col 7-12) */}
+            <div className="lg:col-span-6 space-y-5 flex flex-col justify-between">
+              <InterviewConsensusCard />
               <ExecutiveSummaryCard />
             </div>
           </div>

@@ -1,59 +1,72 @@
 "use client";
 
 import React from "react";
-import { CheckCircle2, TrendingUp, AlertCircle, ArrowUpRight } from "lucide-react";
+import { TrendingUp, AlertCircle, ArrowUpRight, CheckCircle2, Sparkles, Target } from "lucide-react";
 import Link from "next/link";
 
 export default function ExecutiveSummaryCard() {
   return (
-    <div className="w-full border border-slate-100 dark:border-[#242C3B] bg-white dark:bg-[#181E29] rounded-2xl p-3.5 shadow-sm space-y-3">
+    <div
+      role="region"
+      aria-label="Executive Summary & Action Items"
+      className="w-full border border-slate-200/80 dark:border-[#242C3B] bg-white dark:bg-[#181E29] rounded-2xl p-5 shadow-xs space-y-4 flex flex-col justify-between"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <TrendingUp className="w-3.5 h-3.5 text-[#E87A42]" />
-          <h3 className="text-xs font-bold text-slate-900 dark:text-white tracking-tight">
-            Interview Consensus & Executive Summary
-          </h3>
+      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-[#E87A42]/10 text-[#E87A42] flex items-center justify-center border border-[#E87A42]/30">
+            <TrendingUp className="w-4 h-4" aria-hidden="true" />
+          </div>
+          <div>
+            <h3 className="text-xs font-extrabold text-slate-900 dark:text-white tracking-tight">
+              Executive Summary
+            </h3>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              High-impact action items &amp; overall session grading
+            </p>
+          </div>
         </div>
-        <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded bg-[#FFF0E6] dark:bg-[#2F2119] text-[#E87A42]">
-          Strong Hire Trajectory
+
+        {/* Grade Badge */}
+        <span className="text-xs font-mono font-extrabold px-2.5 py-1 rounded-full bg-[#FFF0E6] dark:bg-[#2F2119] text-[#E87A42] border border-[#E87A42]/30">
+          Grade: A- (86/100)
         </span>
       </div>
 
-      {/* Quick Summary Highlights */}
-      <div className="space-y-2">
-        {/* Key Strengths */}
-        <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#131822] border border-slate-100 dark:border-slate-800 space-y-1">
-          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-800 dark:text-slate-200">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-            <span>Demonstrated Strengths</span>
+      {/* Summary Action Items */}
+      <div className="space-y-3">
+        {/* High-Impact Action Item 1 */}
+        <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#131822] border border-slate-200/60 dark:border-slate-800/80 space-y-1">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
+            <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" aria-hidden="true" />
+            <span>Priority Action Item #1</span>
           </div>
-          <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-relaxed pl-5">
-            Decisive distributed consensus reasoning, clean data modeling trade-offs, and STAR structured delivery.
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed pl-5">
+            Explicitly state SLA &amp; p99 throughput boundaries before proposing cache invalidation topologies.
           </p>
         </div>
 
-        {/* Priority Focus Area */}
-        <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#131822] border border-slate-100 dark:border-slate-800 space-y-1">
-          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-800 dark:text-slate-200">
-            <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            <span>High-Impact Action Item</span>
+        {/* High-Impact Action Item 2 */}
+        <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#131822] border border-slate-200/60 dark:border-slate-800/80 space-y-1">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
+            <Target className="w-3.5 h-3.5 text-[#E87A42] shrink-0" aria-hidden="true" />
+            <span>Priority Action Item #2</span>
           </div>
-          <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-relaxed pl-5">
-            Explicitly state SLA & p99 throughput boundaries before proposing cache invalidation topologies.
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed pl-5">
+            Structure sequential Action steps with signposts (&quot;First... then... finally...&quot;) to prevent diluting personal ownership.
           </p>
         </div>
       </div>
 
       {/* Quick Link Footer */}
-      <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800 text-[11px]">
-        <span className="text-slate-500 dark:text-slate-400 text-[10.5px]">Overall Session Grade:</span>
+      <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
+        <span className="text-slate-500 dark:text-slate-400">Readiness Score: <strong className="text-slate-900 dark:text-white">74/100</strong></span>
         <Link
           href="/feedback-hub"
-          className="font-bold text-[#E87A42] hover:underline flex items-center gap-0.5"
+          className="font-bold text-[#E87A42] hover:underline flex items-center gap-1 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#E87A42]"
         >
           <span>View Full Rubric Analysis</span>
-          <ArrowUpRight className="w-3.5 h-3.5" />
+          <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
         </Link>
       </div>
     </div>
