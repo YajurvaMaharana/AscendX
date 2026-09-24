@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
-import Navbar from "@/components/layout/Navbar";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { TabProvider } from "@/context/TabContext";
+import AuthGuard from "@/components/auth/AuthGuard";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -59,10 +59,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <TabProvider>
-              <Navbar />
-              <Suspense fallback={null}>
-                <main>{children}</main>
-              </Suspense>
+              <AuthGuard>{children}</AuthGuard>
             </TabProvider>
           </AuthProvider>
         </ThemeProvider>

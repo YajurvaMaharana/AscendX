@@ -570,7 +570,7 @@ export default function AscendXNavbar({
 
       {/* Profile Edit Modal */}
       {isEditModalOpen && (
-        <ProfileEditModal onClose={() => setIsEditModalOpen(false)} />
+        <ProfileEditModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} />
       )}
     </>
   );

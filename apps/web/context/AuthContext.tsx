@@ -65,6 +65,7 @@ export interface UploadedResumeState {
 }
 
 export interface AuthContextType {
+  isAuthenticated: boolean;
   user: User | NormalizedUser | null;
   session: Session | null;
   isLoading: boolean;
@@ -708,13 +709,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.warn("[AuthContext] Sign out notice:", e);
     }
 
-    // 3. Immediate hard redirect to /auth
+    // Reset flag so subsequent logins succeed
+    isSigningOutRef.current = false;
+
+    // 3. Immediate hard redirect to /auth signin mode
     if (typeof window !== "undefined") {
-      window.location.href = "/auth";
+      window.location.href = "/auth?mode=signin";
     }
   }, []);
 
+  const isAuthenticated = Boolean(user !== null);
+
   const value: AuthContextType = {
+    isAuthenticated,
     user,
     session,
     isLoading,
@@ -736,6 +743,7 @@ export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (!context) {
     return {
+      isAuthenticated: false,
       user: null,
       session: null,
       isLoading: true,

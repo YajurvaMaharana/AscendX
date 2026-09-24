@@ -15,6 +15,7 @@ import {
   Mail,
   Lock,
   User as UserIcon,
+  Briefcase,
   Eye,
   EyeOff,
   ArrowRight,
@@ -47,6 +48,7 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
   const [signUpName, setSignUpName] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
   const [signUpPassword, setSignUpPassword] = useState("");
+  const [signUpTargetRole, setSignUpTargetRole] = useState("Senior Full-Stack Engineer");
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
 
   // Status & Feedback states
@@ -84,13 +86,13 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
   // Ref to prevent multiple redirect attempts
   const isRedirectingRef = useRef(false);
 
-  // Immediate automatic redirection for authenticated users
+  // Automatic redirection for existing authenticated users (on Sign In view)
   useEffect(() => {
-    if (authUser && !authLoading && !isRedirectingRef.current) {
+    if (authUser && !authLoading && !isRedirectingRef.current && !isSignUp) {
       isRedirectingRef.current = true;
       router.replace("/dashboard");
     }
-  }, [authUser, authLoading, router]);
+  }, [authUser, authLoading, router, isSignUp]);
 
   // Helper to toggle between Sign In and Sign Up views
   const toggleMode = (targetSignUp: boolean) => {
@@ -147,9 +149,9 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
       console.warn("[SlidingAuth] Sync notice:", syncErr);
     }
 
-    // Explicit redirect: new registrations go straight to profile completion
+    // Directing to dedicated multi-step registration or profile setup screen for new accounts
     window.location.href = isNewRegistration
-      ? "/profile?onboarding=true"
+      ? "/onboarding"
       : "/dashboard";
   };
 
@@ -231,6 +233,7 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
           data: {
             display_name: cleanName,
             full_name: cleanName,
+            target_role: signUpTargetRole,
           },
         },
       });
@@ -909,6 +912,30 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
                     required
                     disabled={isLoading}
                   />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="signup-role" className="text-xs font-medium">
+                  Target Engineering Role
+                </Label>
+                <div className="relative">
+                  <Briefcase className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground z-10" />
+                  <select
+                    id="signup-role"
+                    value={signUpTargetRole}
+                    onChange={(e) => setSignUpTargetRole(e.target.value)}
+                    className="w-full pl-9 pr-3 h-10 text-sm rounded-md border border-input bg-background text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                    disabled={isLoading}
+                  >
+                    <option value="Senior Full-Stack Engineer">Senior Full-Stack Engineer</option>
+                    <option value="Backend Systems Architect">Backend Systems Architect</option>
+                    <option value="Frontend Engineer (React/Next)">Frontend Engineer (React/Next)</option>
+                    <option value="Distributed Systems Engineer">Distributed Systems Engineer</option>
+                    <option value="DevOps / SRE Specialist">DevOps / SRE Specialist</option>
+                    <option value="AI / ML Solutions Engineer">AI / ML Solutions Engineer</option>
+                    <option value="Engineering Manager">Engineering Manager</option>
+                  </select>
                 </div>
               </div>
 
