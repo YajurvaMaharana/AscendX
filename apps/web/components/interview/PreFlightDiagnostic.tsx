@@ -83,9 +83,10 @@ export default function PreFlightDiagnostic({
   const [uploadMbps, setUploadMbps] = useState<number | null>(null);
   const [networkProgress, setNetworkProgress] = useState<number>(10);
 
-  // Manual Override Gate
+  // Manual Override Gate & Privacy Consent Gate
   const [manualOverrideActive, setManualOverrideActive] = useState<boolean>(false);
   const [overrideAcknowledged, setOverrideAcknowledged] = useState<boolean>(false);
+  const [hasConsentedToVoice, setHasConsentedToVoice] = useState<boolean>(true);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
   // DOM Refs
@@ -443,7 +444,7 @@ export default function PreFlightDiagnostic({
   const isSpeakerPass = speakerTested;
 
   // "All Systems Go" readiness flag
-  const isAllSystemsGo = (isMicPass && isCameraPass && isNetworkPass) || manualOverrideActive;
+  const isAllSystemsGo = ((isMicPass && isCameraPass && isNetworkPass) || manualOverrideActive) && hasConsentedToVoice;
 
   const handleAllSystemsGo = () => {
     // Keep tracks running or transfer stream as needed
@@ -931,6 +932,27 @@ export default function PreFlightDiagnostic({
             {manualOverrideActive ? "Override Active ✓" : "Enable Manual Override"}
           </button>
         </div>
+      </div>
+
+      {/* ── Privacy Trust Notice & Mandatory Consent Checkbox ── */}
+      <div className="p-3.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 space-y-2 text-xs">
+        <div className="flex items-center gap-2 font-bold text-emerald-800 dark:text-emerald-300">
+          <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" aria-hidden="true" />
+          <span>Privacy Trust Guarantee &amp; Voice Recording Consent</span>
+        </div>
+        <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed">
+          Your audio recordings are strictly private, encrypted, and processed for real-time speech telemetry and STAR evaluation. <strong>Your recordings can be deleted at any time from your Privacy Settings.</strong>
+        </p>
+        <label htmlFor="voice-consent-checkbox" className="flex items-center gap-2 pt-1 font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
+          <input
+            id="voice-consent-checkbox"
+            type="checkbox"
+            checked={hasConsentedToVoice}
+            onChange={(e) => setHasConsentedToVoice(e.target.checked)}
+            className="w-4 h-4 rounded text-[#E8602E] focus:ring-[#E8602E] cursor-pointer shrink-0"
+          />
+          <span>I consent to voice audio capture for live interview analysis per my privacy settings.</span>
+        </label>
       </div>
 
       {/* ── Bottom Entry Gate Action Buttons ── */}

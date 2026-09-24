@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { ResumeManager } from "@/components/profile/ResumeManager";
+import PrivacyTrustSettings from "@/components/profile/PrivacyTrustSettings";
 
 // Pre-configured avatar presets
 const AVATAR_PRESETS = [
@@ -1174,6 +1175,9 @@ function ProfilePageContent() {
               </div>
             </div>
           </div>
+
+          {/* Privacy, Trust Assurance & Data Control Section */}
+          <PrivacyTrustSettings />
 
           {/* Bottom Actions */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">

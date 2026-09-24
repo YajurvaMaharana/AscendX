@@ -201,7 +201,7 @@ export default function DeliveryTelemetry({
 
   return (
     <div className="w-full space-y-3" role="region" aria-label="Speaking analysis & delivery insights">
-      {/* Section Header with Context Note */}
+      {/* Section Header with Context Note and Reassuring Privacy Notice */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
         <div>
           <h3 className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
@@ -212,9 +212,14 @@ export default function DeliveryTelemetry({
             Real-time acoustic analysis breaking down delivery metrics, evaluation benchmarks, and targeted practice actions.
           </p>
         </div>
-        <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/80 dark:border-emerald-800/60 px-2.5 py-1 rounded-full self-start sm:self-auto">
-          All 4 Metrics in Target Range
-        </span>
+        <div className="flex flex-col sm:items-end gap-1 self-start sm:self-auto">
+          <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/80 dark:border-emerald-800/60 px-2.5 py-1 rounded-full">
+            All 4 Metrics in Target Range
+          </span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+            🔒 Your recordings are private &amp; can be deleted at any time
+          </span>
+        </div>
       </div>
 
       {/* 4-Metric Responsive Interactive Cards Grid */}
