@@ -13,6 +13,14 @@ export const metadata: Metadata = {
   title: "AscendX - AI Mock Interview Platform",
   description:
     "Master technical and behavioral interviews with AscendX. Adaptive AI mock interviews with real-time feedback.",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
   openGraph: {
     title: "AscendX - AI Mock Interview Platform",
     description:
@@ -28,6 +36,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
