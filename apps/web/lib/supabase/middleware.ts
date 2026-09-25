@@ -8,9 +8,7 @@ import {
 } from "./env";
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  });
+  let supabaseResponse = NextResponse.next();
 
   const urlCandidates = [
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -73,9 +71,7 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
-          supabaseResponse = NextResponse.next({
-            request,
-          });
+          supabaseResponse = NextResponse.next();
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           );
@@ -83,10 +79,16 @@ export async function updateSession(request: NextRequest) {
       },
     });
 
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
+    const timeoutPromise = new Promise<{ data: { user: null }; error: any }>((resolve) =>
+      setTimeout(() => resolve({ data: { user: null }, error: null }), 1000)
+    );
+
+    const userResult = await Promise.race([
+      supabase.auth.getUser(),
+      timeoutPromise,
+    ]);
+
+    const { user, error } = userResult?.data ? { user: userResult.data.user, error: userResult.error } : { user: null, error: null };
 
     if (error && isInvalidKeyError(error.message)) {
       return { user: getMockUser(), supabaseResponse };

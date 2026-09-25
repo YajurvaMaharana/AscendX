@@ -141,7 +141,7 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
         : "Credentials verified! Directing to dashboard..."
     );
 
-    // Sync user with AuthContext
+    // 1. Explicitly sync user to set user state and flip isAuthenticated to true in AuthContext
     try {
       const mockUserObj = {
         id: userRecord.id,
@@ -160,15 +160,15 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
     // Refresh verified users list
     setVerifiedUsers(getUsersDatabase());
 
-    // Redirect to destination
-    setTimeout(() => {
-      window.location.href = isNewRegistration ? "/onboarding" : "/dashboard";
-    }, 400);
+    // 2. Programmatically navigate router path to destination (/dashboard or /onboarding)
+    const destination = isNewRegistration ? "/onboarding" : "/dashboard";
+    router.replace(destination);
   };
 
   // Sign In submit handler with database verification
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     setErrorMessage(null);
     setSuccessMessage(null);
 
@@ -176,6 +176,7 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
     const result = verifyCredentials(signInEmail, signInPassword);
 
     if (!result.success || !result.user) {
+      setIsLoading(false);
       setErrorMessage(
         result.error ||
           "Invalid credentials or account does not exist. Please check your details or create a new account."
@@ -198,25 +199,30 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
   // Sign Up submit handler with duplicate email prevention & uniqueness validation
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     setErrorMessage(null);
     setSuccessMessage(null);
 
     if (!signUpName.trim()) {
+      setIsLoading(false);
       setErrorMessage("Please enter your full name.");
       return;
     }
     const cleanEmail = signUpEmail.trim().toLowerCase();
     if (!cleanEmail) {
+      setIsLoading(false);
       setErrorMessage("Please enter a valid email address.");
       return;
     }
     if (!signUpPassword || signUpPassword.length < 6) {
+      setIsLoading(false);
       setErrorMessage("Password must be at least 6 characters long.");
       return;
     }
 
     // 1. Email Existence Check: Check if email already exists in registered database array
     if (isEmailRegistered(cleanEmail)) {
+      setIsLoading(false);
       setErrorMessage(
         "An account with this email already exists. Please sign in instead."
       );
@@ -232,6 +238,7 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
     });
 
     if (!regResult.success || !regResult.user) {
+      setIsLoading(false);
       setErrorMessage(
         regResult.error || "Registration failed. Please try again."
       );

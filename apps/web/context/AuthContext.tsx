@@ -102,9 +102,10 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // Default state initialization: user is strictly null by default -> isAuthenticated starts strictly as false
   const [user, setUser] = useState<User | NormalizedUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const isSigningOutRef = useRef(false);
 
   // Global Unified Resume State Store
@@ -227,19 +228,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      // 1. Immediately persist to localStorage and Cookie for SSR & immediate client access
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem("sb-mock-user", JSON.stringify(userPayload));
           document.cookie = `sb-mock-auth=${encodeURIComponent(
             JSON.stringify(userPayload)
           )}; path=/; max-age=604800; SameSite=Lax`;
-        } catch {
-          // Ignore local storage error
-        }
+        } catch {}
       }
 
-      // 2. Perform upsert into public.users table directly and via /api/auth/sync
       const supabase = createClient();
       try {
         const dbPayload: Record<string, any> = {
@@ -273,7 +270,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn("[AuthContext] Background sync notice:", e);
       }
 
-      // Update state
       setUser(userPayload as any);
       return { id, email, display_name: displayName };
     },
@@ -349,7 +345,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user, fetchUserProfileFromDb]);
 
-  // Update candidate profile with direct Supabase + local cache sync
+  // Update candidate profile
   const updateUserProfile = useCallback(
     async (updates: {
       display_name?: string;
@@ -425,7 +421,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      // 1. Update local state & storage immediately
       setUser(updatedUserPayload);
       if (updates.resume_data) {
         const filename = updates.resume_filename || "Candidate_Resume.pdf";
@@ -455,7 +450,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch {}
       }
 
-      // 2. Persist to Supabase and API
       const supabase = createClient();
       try {
         const dbPayload: Record<string, any> = {
@@ -525,7 +519,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return true;
       } catch (err) {
         console.warn("[AuthContext] Profile update background error:", err);
-        return true; // Local state is already updated
+        return true;
       }
     },
     [user]
@@ -544,7 +538,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return { success: true };
     } catch (err: any) {
-      return { success: true }; // Handled safely
+      return { success: true };
     }
   }, []);
 
@@ -584,7 +578,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.warn("[AuthContext] deleteAccount api call notice:", err);
     }
 
-    // Clean up local storage and sign out
     if (typeof window !== "undefined") {
       try {
         localStorage.removeItem("sb-mock-user");
@@ -612,40 +605,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   }, [user]);
 
-  // Clean, single initialization on mount
+  // Clean, single initialization on mount without auto-logging in stored mock users
   useEffect(() => {
     let isMounted = true;
     const supabase = createClient();
 
-    // 1. Check existing session
+    // 1. Check existing session from active Supabase auth instance
     supabase.auth
       .getSession()
       .then(async ({ data }: { data: { session: Session | null } }) => {
         if (!isMounted || isSigningOutRef.current) return;
-        if (data?.session?.user) {
+        if (data?.session?.user && !data.session.access_token?.includes("mock-token")) {
           setSession(data.session);
           setUser(data.session.user);
-          // Fetch full profile from database to get synced profile data
           await fetchUserProfileFromDb(data.session.user.id, data.session.user);
         } else {
-          // Check local fallback
-          if (typeof window !== "undefined") {
-            try {
-              const stored = localStorage.getItem("sb-mock-user");
-              if (stored) {
-                const parsed = JSON.parse(stored);
-                if (parsed?.id && parsed?.email) {
-                  setUser(parsed);
-                  await fetchUserProfileFromDb(parsed.id, parsed);
-                }
-              }
-            } catch {}
-          }
+          // Strictly boot up displaying the sign-in / authentication view first
+          setUser(null);
+          setSession(null);
         }
         setIsLoading(false);
       })
       .catch(() => {
-        if (isMounted) setIsLoading(false);
+        if (isMounted) {
+          setUser(null);
+          setSession(null);
+          setIsLoading(false);
+        }
       });
 
     // 2. Single subscription to auth state changes
@@ -682,12 +668,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isSigningOutRef.current = true;
     const supabase = createClient();
 
-    // 1. Clear local credentials and session storage immediately
     if (typeof window !== "undefined") {
       try {
         localStorage.removeItem("sb-mock-user");
         localStorage.removeItem("ascendx_uploaded_resume");
-        // Clear any other Supabase or auth related items in storage
         Object.keys(localStorage).forEach((key) => {
           if (key.startsWith("sb-") || key.includes("supabase")) {
             localStorage.removeItem(key);
@@ -702,22 +686,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setUploadedResumeState(null);
 
-    // 2. Invoke Supabase signOut
     try {
       await supabase.auth.signOut();
     } catch (e) {
       console.warn("[AuthContext] Sign out notice:", e);
     }
 
-    // Reset flag so subsequent logins succeed
     isSigningOutRef.current = false;
 
-    // 3. Immediate hard redirect to /auth signin mode
     if (typeof window !== "undefined") {
       window.location.href = "/auth?mode=signin";
     }
   }, []);
 
+  // Strict isAuthenticated boolean derivation initialized to false by default
   const isAuthenticated = Boolean(user !== null);
 
   const value: AuthContextType = {

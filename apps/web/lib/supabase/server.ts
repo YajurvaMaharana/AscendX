@@ -44,11 +44,7 @@ export function createClient() {
   const { url, key } = getServerCredentials();
 
   const getMockUser = () => {
-    let mockUser = {
-      id: emailToUUID("candidate@example.com"),
-      email: "candidate@example.com",
-      user_metadata: { display_name: "Candidate" },
-    };
+    let mockUser: any = null;
     try {
       const mockCookie = cookieStore.get("sb-mock-auth");
       if (mockCookie?.value) {
@@ -58,7 +54,7 @@ export function createClient() {
         }
       }
     } catch {
-      // Use default mock user
+      mockUser = null;
     }
     return mockUser;
   };
@@ -103,11 +99,30 @@ export function createClient() {
     const originalGetUser = rawServerClient.auth.getUser.bind(rawServerClient.auth);
     const originalGetSession = rawServerClient.auth.getSession.bind(rawServerClient.auth);
 
+    const withTimeout = async <T>(promise: Promise<T>, fallbackValue: T, timeoutMs = 500): Promise<T> => {
+      let timer: NodeJS.Timeout;
+      const timeoutPromise = new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(fallbackValue), timeoutMs);
+      });
+      try {
+        const result = await Promise.race([promise, timeoutPromise]);
+        clearTimeout(timer!);
+        return result;
+      } catch {
+        clearTimeout(timer!);
+        return fallbackValue;
+      }
+    };
+
     const safeAuth = {
       ...rawServerClient.auth,
       getUser: async () => {
         try {
-          const res = await originalGetUser();
+          const res = await withTimeout(
+            originalGetUser(),
+            { data: { user: null }, error: new Error("Auth request timeout") } as any,
+            500
+          );
           if (res.error && isInvalidKeyError(res.error.message)) {
             return { data: { user: getMockUser() }, error: null };
           }
@@ -122,12 +137,16 @@ export function createClient() {
           if (isInvalidKeyError(err?.message)) {
             return { data: { user: getMockUser() }, error: null };
           }
-          return { data: { user: null }, error: err };
+          return { data: { user: getMockUser() }, error: null };
         }
       },
       getSession: async () => {
         try {
-          const res = await originalGetSession();
+          const res = await withTimeout(
+            originalGetSession(),
+            { data: { session: null }, error: new Error("Auth request timeout") } as any,
+            500
+          );
           if (res.error && isInvalidKeyError(res.error.message)) {
             const mockUser = getMockUser();
             return {
@@ -159,7 +178,7 @@ export function createClient() {
               error: null,
             };
           }
-          return { data: { session: null }, error: err };
+          return { data: { session: null }, error: null };
         }
       },
     };

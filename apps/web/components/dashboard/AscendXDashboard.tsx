@@ -7,9 +7,9 @@ import DashboardOverview from "@/components/dashboard/views/DashboardOverview";
 import MockInterviewsView from "@/components/dashboard/views/MockInterviewsView";
 import InsightsTrendsView from "@/components/dashboard/views/InsightsTrendsView";
 import GapAnalysisView from "@/components/grounding/GapAnalysisView";
-import VoiceCoachPage from "@/app/voice-coach/page";
-import DaySimulationsPage from "@/app/day-simulations/page";
-import FeedbackHubPage from "@/app/feedback-hub/page";
+import VoiceCoachView from "@/components/dashboard/views/VoiceCoachView";
+import DaySimulationsView from "@/components/dashboard/views/DaySimulationsView";
+import FeedbackHubView from "@/components/dashboard/views/FeedbackHubView";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { getActiveSessionId } from "@/hooks/useInterviewSessionState";
 
@@ -104,13 +104,13 @@ export default function AscendXDashboard({
       );
 
     case "voice-coach":
-      return <VoiceCoachPage />;
+      return <VoiceCoachView />;
 
     case "day-simulations":
-      return <DaySimulationsPage />;
+      return <DaySimulationsView />;
 
     case "feedback-hub":
-      return <FeedbackHubPage />;
+      return <FeedbackHubView />;
 
     case "dashboard":
     default:

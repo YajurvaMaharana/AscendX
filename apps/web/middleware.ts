@@ -1,10 +1,22 @@
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
-  // Update Supabase session cookies without enforcing automated route redirects
-  const { supabaseResponse } = await updateSession(request);
-  return supabaseResponse;
+  // Fast path for React Server Component (RSC) payload fetches
+  if (
+    request.headers.get("rsc") === "1" ||
+    request.headers.get("accept")?.includes("text/x-component") ||
+    request.nextUrl.searchParams.has("_rsc")
+  ) {
+    return NextResponse.next();
+  }
+
+  try {
+    const { supabaseResponse } = await updateSession(request);
+    return supabaseResponse;
+  } catch {
+    return NextResponse.next();
+  }
 }
 
 export const config = {

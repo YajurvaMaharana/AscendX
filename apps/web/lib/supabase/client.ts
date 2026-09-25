@@ -122,36 +122,20 @@ function createMockClient() {
         return { data: {}, error: null };
       },
       getUser: async () => {
-        const user = getStoredMockUser();
-        return { data: { user }, error: null };
+        return { data: { user: null }, error: null };
       },
       getSession: async () => {
-        const user = getStoredMockUser();
-        return {
-          data: {
-            session: user ? { user, access_token: "mock-token" } : null,
-          },
-          error: null,
-        };
+        return { data: { session: null }, error: null };
       },
       onAuthStateChange: (
         callback: (event: string, session: any) => void
       ) => {
         authListeners.add(callback);
-        const user = getStoredMockUser();
-        if (user) {
-          setTimeout(() => {
-            if (authListeners.has(callback)) {
-              callback("INITIAL_SESSION", { user, access_token: "mock-token" });
-            }
-          }, 0);
-        } else {
-          setTimeout(() => {
-            if (authListeners.has(callback)) {
-              callback("INITIAL_SESSION", null);
-            }
-          }, 0);
-        }
+        setTimeout(() => {
+          if (authListeners.has(callback)) {
+            callback("INITIAL_SESSION", null);
+          }
+        }, 0);
         return {
           data: {
             subscription: {
@@ -299,7 +283,6 @@ export function createClient() {
           const res = await originalSignUp(credentials);
           if (res.error) {
             const errStr = (res.error.message || "").toLowerCase();
-            // If already registered, auto-sign in immediately
             if (
               errStr.includes("already registered") ||
               errStr.includes("already exists") ||
@@ -329,11 +312,7 @@ export function createClient() {
             return res;
           }
 
-          // If signup returned user without an active session (e.g. email confirmation required)
           if (res.data?.user && !res.data.session) {
-            console.log(
-              "[supabase] Bypassing email confirmation; auto-logging in user immediately."
-            );
             const user = {
               ...res.data.user,
               id: isValidUUID(res.data.user.id)
@@ -367,18 +346,12 @@ export function createClient() {
         try {
           const res = await originalGetUser();
           if (res.error && isInvalidKeyError(res.error.message)) {
-            return await mockClient.auth.getUser();
-          }
-          if (!res.data?.user) {
-            const fallbackUser = getStoredMockUser();
-            if (fallbackUser) {
-              return { data: { user: fallbackUser }, error: null };
-            }
+            return { data: { user: null }, error: null };
           }
           return res;
         } catch (err: any) {
           if (isInvalidKeyError(err?.message)) {
-            return await mockClient.auth.getUser();
+            return { data: { user: null }, error: null };
           }
           throw err;
         }
@@ -387,23 +360,12 @@ export function createClient() {
         try {
           const res = await originalGetSession();
           if (res.error && isInvalidKeyError(res.error.message)) {
-            return await mockClient.auth.getSession();
-          }
-          if (!res.data?.session) {
-            const fallbackUser = getStoredMockUser();
-            if (fallbackUser) {
-              return {
-                data: {
-                  session: { user: fallbackUser, access_token: "mock-token" },
-                },
-                error: null,
-              };
-            }
+            return { data: { session: null }, error: null };
           }
           return res;
         } catch (err: any) {
           if (isInvalidKeyError(err?.message)) {
-            return await mockClient.auth.getSession();
+            return { data: { session: null }, error: null };
           }
           throw err;
         }
@@ -419,18 +381,12 @@ export function createClient() {
             callback(event, session);
           });
         } catch {
-          // If native listener fails, trigger local session if available
-          const mockUser = getStoredMockUser();
-          if (mockUser) {
-            Promise.resolve().then(() => {
-              if (authListeners.has(callback)) {
-                callback("INITIAL_SESSION", {
-                  user: mockUser,
-                  access_token: "mock-token",
-                });
-              }
-            });
-          }
+          // Default to unauthenticated session on app startup
+          Promise.resolve().then(() => {
+            if (authListeners.has(callback)) {
+              callback("INITIAL_SESSION", null);
+            }
+          });
         }
         return {
           data: {
