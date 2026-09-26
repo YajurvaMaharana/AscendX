@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -281,10 +282,82 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
       return;
     }
 
-    // 3. Successfully registered into database array! Process authentication & redirect
+    // 3. Supabase Auth Sign Up & Explicit Public Table Insertion
+    const fullName = signUpName.trim();
+    const email = cleanEmail;
+    const supabase = createClient();
+    let supabaseUserId = regResult.user.id;
+
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: email,
+        password: signUpPassword,
+        options: {
+          data: {
+            display_name: fullName,
+            full_name: fullName,
+            target_role: signUpTargetRole,
+          },
+        },
+      });
+
+      if (signUpError) {
+        console.error("[SignUp] Supabase auth.signUp error:", signUpError);
+      }
+
+      if (data?.user?.id) {
+        supabaseUserId = data.user.id;
+        try {
+          // Explicit Public Table Insertion:
+          const { error: insertError } = await supabase
+            .from("users")
+            .insert([{ id: data.user.id, email: email, display_name: fullName }]);
+
+          if (insertError) {
+            console.error(
+              "[SignUp] Error inserting user into public.users table:",
+              insertError
+            );
+          } else {
+            console.log(
+              "[SignUp] Successfully inserted user into public.users table:",
+              { id: data.user.id, email: email, display_name: fullName }
+            );
+          }
+        } catch (dbInsertErr) {
+          console.error(
+            "[SignUp] Exception during public.users insertion:",
+            dbInsertErr
+          );
+        }
+      } else {
+        // Fallback insertion using generated user ID if auth.signUp did not return user
+        try {
+          const { error: insertError } = await supabase
+            .from("users")
+            .insert([{ id: supabaseUserId, email: email, display_name: fullName }]);
+
+          if (insertError) {
+            console.error(
+              "[SignUp] Error inserting fallback user into public.users table:",
+              insertError
+            );
+          }
+        } catch (dbInsertErr) {
+          console.error(
+            "[SignUp] Exception during fallback public.users insertion:",
+            dbInsertErr
+          );
+        }
+      }
+    } catch (signUpException) {
+      console.error("[SignUp] Exception during Supabase auth sign up flow:", signUpException);
+    }
+
+    // 4. Successfully registered! Process authentication & redirect
     await processAuthSuccess(
       {
-        id: regResult.user.id,
+        id: supabaseUserId,
         email: regResult.user.email,
         name: regResult.user.name,
         target_role: regResult.user.target_role,
