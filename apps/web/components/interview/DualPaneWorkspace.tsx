@@ -266,11 +266,6 @@ export function DualPaneWorkspace({
           const current = (final || interim).trim();
           if (current) {
             setUserLiveTranscript(current);
-            // Append speech into code/text editor if focused or empty
-            setCodeResponse((prev) => {
-              if (!prev.trim()) return current;
-              return prev;
-            });
           }
         };
 
@@ -347,71 +342,180 @@ export function DualPaneWorkspace({
     }, 50);
   };
 
-  // Answer Submission Handler - updates submission state, triggers state updates, and sends to AI engine
+  // Conversational State Machine: [listening] -> [evaluating] -> [reacting] -> [transitioning] -> [completed]
+  const [flowState, setFlowState] = useState<"listening" | "evaluating" | "reacting" | "transitioning" | "completed">("listening");
+  const [aiReactionText, setAiReactionText] = useState<string | null>(null);
+  const [evaluationResult, setEvaluationResult] = useState<any | null>(null);
+  const [autoAdvanceSeconds, setAutoAdvanceSeconds] = useState<number | null>(null);
+
+  // Automated Sequential Progression Timer:
+  // After AI enters 'reacting' state, start a 6-second countdown then auto-advance to next question phase (Q1 -> Q2 -> Q3 -> Q4 -> Q5)
+  useEffect(() => {
+    if (flowState !== "reacting") {
+      setAutoAdvanceSeconds(null);
+      return;
+    }
+
+    setAutoAdvanceSeconds(6);
+    const interval = setInterval(() => {
+      setAutoAdvanceSeconds((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    const timer = setTimeout(() => {
+      handleNextQuestion();
+    }, 6000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timer);
+    };
+  }, [flowState]);
+
+  // 1. Answer Evaluation Hook & Conversational State Machine:
+  // When a user submits an answer (speech or text), pass answer payload to evaluation endpoint BEFORE moving to next question.
   const handleSubmit = async () => {
-    if (!codeResponse.trim() || isLoading) return;
+    if (!codeResponse.trim() || isLoading || flowState === "evaluating") return;
     const submission = codeResponse.trim();
+
+    const isClosingDebrief = arrayIndex >= INTERVIEW_QUESTIONS.length - 1;
+
     setLastSubmittedAnswer(submission);
     setIsAnswerSubmitted(true);
     if (onAnswerSubmittedChange) onAnswerSubmittedChange(true);
-    clearDraft();
-    setUserLiveTranscript("");
-    try {
+
+    if (isClosingDebrief) {
+      // 1. Closing Debrief Evaluation & Wrap-Up:
+      // For Question #5 (Phase 5/5), treat user input as the final response or question,
+      // and trigger a final wrap-up state instead of staying in [listening].
+      const wrapUpText = `Thank you for completing your mock interview session! All responses have been evaluated across your technical, architectural, and nonverbal metrics. Generating your evaluation report now...`;
+      setAiReactionText(wrapUpText);
+      setFlowState("completed");
+
+      if (aiVoiceActive && !tts.isMuted) {
+        tts.stop();
+        setTimeout(() => {
+          tts.speak(wrapUpText);
+        }, 250);
+      }
+
       await onSendMessage(submission);
-    } catch {
-      setCodeResponse(submission);
+      clearDraft();
+      setUserLiveTranscript("");
+
+      // 2. Auto-Transition to Feedback: Navigate to /feedback route automatically
+      setTimeout(() => {
+        if (onEndSession) {
+          onEndSession();
+        }
+      }, 1800);
+      return;
+    }
+
+    // Set state machine to EVALUATING for Questions 1-4
+    setFlowState("evaluating");
+
+    try {
+      // 1. Send answer payload to evaluation hook / LLM follow-up endpoint
+      const followUpRes = await fetch(
+        `/api/interviews/${encodeURIComponent(sessionId || "demo")}/follow-up`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages,
+            role: sessionRole,
+            persona: personaDisplayName,
+            topic: activeQuestionTextObject.title,
+          }),
+        }
+      ).catch(() => null);
+
+      let reaction = "";
+      if (followUpRes && followUpRes.ok) {
+        const evalData = await followUpRes.json();
+        setEvaluationResult(evalData);
+        if (evalData.next_response) {
+          reaction = evalData.next_response;
+        }
+      }
+
+      if (!reaction) {
+        reaction = `Good technical points on ${activeQuestionTextObject.title}. Let's examine edge cases and rate limits under concurrent load.`;
+      }
+
+      // 2. AI Reaction & Feedback State
+      setAiReactionText(reaction);
+      setFlowState("reacting");
+
+      // Auto-speak AI Reaction probe aloud via TTS
+      if (aiVoiceActive && !tts.isMuted) {
+        tts.stop();
+        setTimeout(() => {
+          tts.speak(reaction);
+        }, 250);
+      }
+
+      // Persist user answer message via onSendMessage
+      await onSendMessage(submission);
+
+      clearDraft();
+      setUserLiveTranscript("");
+    } catch (err) {
+      console.warn("Answer evaluation error:", err);
+      setFlowState("listening");
       setIsAnswerSubmitted(false);
       if (onAnswerSubmittedChange) onAnswerSubmittedChange(false);
     }
   };
 
-  // Next Question Handler - advances interview state to subsequent question and triggers load
+  // Next Question Handler & Transition State Machine
   const handleNextQuestion = async () => {
-    if (isLoading) return;
+    if (isLoading || flowState === "evaluating") return;
 
-    // If candidate has code/text in buffer that hasn't been submitted yet, submit it first!
-    if (!isAnswerSubmitted && codeResponse.trim().length > 0) {
-      const submission = codeResponse.trim();
-      setLastSubmittedAnswer(submission);
-      setIsAnswerSubmitted(true);
-      if (onAnswerSubmittedChange) onAnswerSubmittedChange(true);
-      clearDraft();
-      setUserLiveTranscript("");
-      try {
-        await onSendMessage(submission);
-      } catch {
-        setCodeResponse(submission);
-        setIsAnswerSubmitted(false);
-        if (onAnswerSubmittedChange) onAnswerSubmittedChange(false);
-        return;
+    // 4. Robust Question 5 / Closing Handler:
+    // If we are at Question #5 / index 4 (5th element of INTERVIEW_QUESTIONS), completing it triggers session finish & redirect
+    if (arrayIndex >= INTERVIEW_QUESTIONS.length - 1) {
+      setFlowState("completed");
+      if (onEndSession) {
+        onEndSession();
       }
+      return;
     }
 
-    // Advance question index and phase
+    setFlowState("transitioning");
+
+    // Advance question index
     const nextIndex = currentQuestionIndex + 1;
     setCurrentQuestionIndex(nextIndex);
     setIsAnswerSubmitted(false);
     setLastSubmittedAnswer(null);
+    setAiReactionText(null);
     if (onAnswerSubmittedChange) onAnswerSubmittedChange(false);
     clearDraft();
     setCodeResponse("");
 
-    const nextPhaseObj =
-      nextIndex <= 1
-        ? PHASES[0]
-        : nextIndex === 2
-        ? PHASES[1]
-        : nextIndex === 3
-        ? PHASES[2]
-        : nextIndex === 4
-        ? PHASES[3]
-        : PHASES[4];
+    // Calculate array index for next question
+    const nextArrIdx = nextIndex >= 1 && nextIndex <= INTERVIEW_QUESTIONS.length
+      ? nextIndex - 1
+      : nextIndex;
+    const nextQuestionObj = INTERVIEW_QUESTIONS[nextArrIdx] || INTERVIEW_QUESTIONS[0];
+
+    // Reset flowState back to listening for the newly advanced question
+    setTimeout(() => {
+      setFlowState("listening");
+    }, 200);
 
     if (onNextQuestion) {
-      await onNextQuestion(nextIndex, nextPhaseObj.name);
+      await onNextQuestion(nextIndex, nextQuestionObj.phase);
     } else {
       await onSendMessage(
-        `[Proceed to Question ${nextIndex}: ${nextPhaseObj.name}] Please present the question for this phase to the candidate.`
+        `[Proceed to Question ${nextIndex}: ${nextQuestionObj.phase}] Please present the question for this phase to the candidate.`
       );
     }
 
@@ -1045,95 +1149,32 @@ function optimizeExecution(nodes) {
                 <div className="flex items-center justify-between text-xs text-amber-300">
                   <div className="flex items-center gap-1.5 font-semibold">
                     <Sparkles className="h-3.5 w-3.5 text-[#E8602E] animate-pulse" />
-                    <span>Question #{currentQuestionIndex}: {currentPhase.name}</span>
+                    <span>Active Question Prompt</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#E8602E]/20 text-orange-300 border border-[#E8602E]/30">
-                      Phase {currentPhase.index}/5
-                    </span>
                     {tts.isSpeaking && (
                       <span className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#E8602E]/20 text-[#F58245] border border-[#E8602E]/30 animate-pulse">
                         <Volume2 className="h-2.5 w-2.5" />
                         Speaking
                       </span>
                     )}
-                  </div>
-                </div>
-
-                {/* Primary Active Question Prompt */}
-                <div className="p-3.5 rounded-xl bg-[#0D121B] border border-[#232D3F] space-y-2">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-amber-400">
-                    <span className="flex items-center gap-1">
-                      <ChevronRight className="h-3 w-3 text-[#E8602E]" />
-                      Active Question Prompt:
-                    </span>
                     <button
                       type="button"
                       onClick={() => tts.speak(currentQuestionPromptText)}
                       className="text-[10px] font-mono text-slate-400 hover:text-amber-300 transition-colors flex items-center gap-1 cursor-pointer"
                       title="Replay Audio for this question"
                     >
-                      <Volume2 className="h-3 w-3" /> Replay Question
+                      <Volume2 className="h-3 w-3" /> Replay
                     </button>
                   </div>
+                </div>
+
+                {/* Primary Active Question Prompt Text Only */}
+                <div className="p-3.5 rounded-xl bg-[#0D121B] border border-[#232D3F]">
                   <p className="text-xs sm:text-sm text-slate-100 leading-relaxed font-sans whitespace-pre-wrap">
                     {currentQuestionPromptText}
                   </p>
                 </div>
-
-                {/* Real-time Answer Submission Status Banner */}
-                {isAnswerSubmitted && (
-                  <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs animate-in fade-in duration-300">
-                    <div className="flex items-center gap-1.5">
-                      <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                      <span className="font-medium">
-                        Answer submitted for Question #{currentQuestionIndex}. Click <strong>&quot;Next Question&quot;</strong> to advance to subsequent state.
-                      </span>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={handleNextQuestion}
-                      className="h-7 px-3 text-[11px] font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-lg cursor-pointer shrink-0"
-                    >
-                      Advance →
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 2. AI Insight Cards */}
-            <div className="flex flex-col space-y-2">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-xs font-semibold text-slate-300">
-                  AI Insight Cards
-                </span>
-                <span className="text-[10px] text-slate-500 font-mono">
-                  Live Adaptive Probes
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                {insightCards.map((card) => (
-                  <div
-                    key={card.id}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-[#161B26] hover:bg-[#1A2130] border border-[#242D3E] hover:border-amber-500/30 transition-all shadow-sm group"
-                  >
-                    <div className="h-8 w-8 rounded-lg bg-[#201815] border border-amber-500/30 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <Lightbulb className="h-4 w-4 text-amber-400 group-hover:text-amber-300" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-semibold text-slate-200 group-hover:text-amber-300 transition-colors">
-                        {card.label}
-                      </div>
-                      <div className="text-[11px] text-slate-400 truncate">
-                        {card.detail}
-                      </div>
-                    </div>
-                    <ChevronRight className="h-3.5 w-3.5 text-slate-600 group-hover:text-amber-400 transition-colors shrink-0" />
-                  </div>
-                ))}
               </div>
             </div>
 

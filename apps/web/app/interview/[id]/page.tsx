@@ -373,51 +373,143 @@ function InterviewPageContent() {
     error,
   ]);
 
-  const handleSendMessage = async (content: string) => {
-    if (!content.trim() || isLoading) return;
+  const [flowState, setFlowState] = React.useState<
+    "listening" | "evaluating" | "reacting" | "transitioning" | "completed"
+  >("listening");
+  const [aiReactionText, setAiReactionText] = React.useState<string | null>(null);
 
-    // Stop ongoing speech before user speaks/sends
+  // Automated Sequential Progression Timer:
+  // After AI enters 'reacting' state, start a 6s timer then auto-advance to next question phase
+  React.useEffect(() => {
+    if (flowState !== "reacting") return;
+
+    const timer = setTimeout(() => {
+      handleNextQuestion();
+    }, 6000);
+
+    return () => clearTimeout(timer);
+  }, [flowState]);
+
+  const handleSendMessage = async (content: string) => {
+    if (!content.trim() || isLoading || flowState === "evaluating") return;
+
+    const isClosingDebrief = arrayIndex >= INTERVIEW_QUESTIONS.length - 1;
+
+    // 1. Enter EVALUATING state
+    setFlowState("evaluating");
     tts.stop();
     setError(null);
     setLastFailedMessage(null);
     setHasSubmittedAnswer(true);
 
+    if (isClosingDebrief) {
+      // Closing Debrief Evaluation: Treat input as final response and transition to completed
+      const wrapUpText = `Thank you for completing your mock interview session! All responses have been evaluated across your technical, architectural, and nonverbal metrics. Generating your evaluation report now...`;
+      setAiReactionText(wrapUpText);
+      setFlowState("completed");
+
+      if (tts.autoPlayEnabled && !tts.isMuted) {
+        setTimeout(() => {
+          tts.speak(wrapUpText);
+        }, 250);
+      }
+
+      await append({
+        role: "user",
+        content: content.trim(),
+      });
+
+      // Auto-Transition to Feedback View
+      setTimeout(() => {
+        handleEndSession();
+      }, 1800);
+      return;
+    }
+
     try {
+      // 1. Answer Evaluation Hook: Call /api/interviews/[id]/follow-up BEFORE moving to next question
+      const followUpRes = await fetch(
+        `/api/interviews/${encodeURIComponent(interviewId)}/follow-up`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: chatMessages,
+            role: session?.role,
+            persona: personaDisplayName,
+            topic: activeQuestionTextObject.title,
+          }),
+        }
+      ).catch(() => null);
+
+      let reaction = "";
+      if (followUpRes && followUpRes.ok) {
+        const evalData = await followUpRes.json();
+        if (evalData.next_response) {
+          reaction = evalData.next_response;
+        }
+      }
+
+      if (!reaction) {
+        reaction = `Good analysis on ${activeQuestionTextObject.title}. Let's examine edge cases and rate limits under concurrent load.`;
+      }
+
+      // 2. AI Reaction & Feedback State
+      setAiReactionText(reaction);
+      setFlowState("reacting");
+
+      // Auto-speak AI Reaction probe aloud via TTS
+      if (tts.autoPlayEnabled && !tts.isMuted) {
+        tts.stop();
+        setTimeout(() => {
+          tts.speak(reaction);
+        }, 250);
+      }
+
+      // Send answer message to AI engine
       await append({
         role: "user",
         content: content.trim(),
       });
     } catch (err: any) {
       const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Streaming connection issue. Please try again.";
+        err instanceof Error ? err.message : "Streaming connection issue. Please try again.";
       setError(`Failed to receive response: ${errorMessage}`);
       setLastFailedMessage(content);
       setHasSubmittedAnswer(false);
+      setFlowState("listening");
     }
   };
 
   const handleNextQuestion = async (targetIndex?: number, phaseTitle?: string) => {
     tts.stop();
-    const nextIdx = targetIndex ?? (questionIndex + 1);
-    setQuestionIndex(nextIdx);
+    const nextIdx = targetIndex ?? (arrayIndex + 1);
+
+    // 4. Robust Question 5 / Closing Handler:
+    // If we are at Question #5 / index 4 (5th element of INTERVIEW_QUESTIONS), completing it triggers session finish & redirect
+    if (nextIdx >= INTERVIEW_QUESTIONS.length) {
+      setFlowState("completed");
+      handleEndSession();
+      return;
+    }
+
+    setFlowState("transitioning");
+    setQuestionIndex(nextIdx + 1); // 1-based index for persistence
     setHasSubmittedAnswer(false);
+    setAiReactionText(null);
     setError(null);
 
-    const phaseMap: Record<number, string> = {
-      1: "Introduction & Technical Context",
-      2: "Core Technical & Algorithmic Problem Solving",
-      3: "High-Scale Concurrency & System Architecture",
-      4: "Behavioral & Situational (STAR Framework)",
-      5: "Candidate Questions & Wrap-Up",
-    };
-    const phase = phaseTitle || phaseMap[nextIdx] || "Technical & Behavioral Assessment";
+    const nextQuestionObj = INTERVIEW_QUESTIONS[nextIdx] || INTERVIEW_QUESTIONS[0];
+    const phase = phaseTitle || nextQuestionObj.phase;
+
+    setTimeout(() => {
+      setFlowState("listening");
+    }, 200);
 
     try {
       await append({
         role: "user",
-        content: `[Proceed to Question ${nextIdx}: ${phase}] Please present the question for this phase to the candidate.`,
+        content: `[Proceed to Question ${nextIdx + 1}: ${phase}] Please present the question for this phase to the candidate.`,
       });
     } catch (err: any) {
       console.warn("Could not load subsequent question:", err);
