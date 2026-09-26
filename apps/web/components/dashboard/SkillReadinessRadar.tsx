@@ -25,6 +25,7 @@ export interface SkillItem {
 }
 
 interface SkillReadinessRadarProps {
+  totalSessions?: number;
   communication?: number; // 0-100
   techDepth?: number;
   starStructure?: number;
@@ -37,12 +38,13 @@ interface SkillReadinessRadarProps {
 }
 
 export default function SkillReadinessRadar({
-  communication = 78,
-  techDepth = 72,
+  totalSessions = 0,
+  communication,
+  techDepth,
   starStructure,
   confidence,
-  starStorytelling = 61,
-  deliveryPace = 84,
+  starStorytelling,
+  deliveryPace,
   title = "Skill Performance & Core Competencies",
   subtitle = "Horizontal competency comparison with previous-session deltas & interpretations",
   defaultView = "bars",
@@ -50,28 +52,36 @@ export default function SkillReadinessRadar({
   const [viewMode, setViewMode] = useState<"bars" | "radar">(defaultView);
   const [hoveredSkill, setHoveredSkill] = useState<string | null>(null);
 
+  const hasData = totalSessions > 0;
+
   // Resolved scores
-  const resolvedStar = starStructure ?? starStorytelling;
-  const resolvedConfidence = confidence ?? deliveryPace;
+  const resolvedComm = communication ?? (hasData ? 78 : 0);
+  const resolvedTech = techDepth ?? (hasData ? 72 : 0);
+  const resolvedStar = starStructure ?? starStorytelling ?? (hasData ? 61 : 0);
+  const resolvedConfidence = confidence ?? deliveryPace ?? (hasData ? 84 : 0);
 
   const skills: SkillItem[] = [
     {
       id: "comm",
       name: "Communication",
-      score: communication,
-      previousScore: 72,
+      score: resolvedComm,
+      previousScore: hasData ? 72 : 0,
       benchmark: 75,
-      interpretation: "Clear pacing and concise articulation; slight filler word tendency during complex transitions.",
+      interpretation: hasData
+        ? "Clear pacing and concise articulation; slight filler word tendency during complex transitions."
+        : "Pending first interview session evaluation.",
       barColor: "bg-blue-500",
       accentColor: "text-blue-700 dark:text-blue-300",
     },
     {
       id: "tech",
       name: "Technical depth",
-      score: techDepth,
-      previousScore: 68,
+      score: resolvedTech,
+      previousScore: hasData ? 68 : 0,
       benchmark: 75,
-      interpretation: "Strong system architecture principles; expand on edge-case failure modes and database partitioning.",
+      interpretation: hasData
+        ? "Strong system architecture principles; expand on edge-case failure modes and database partitioning."
+        : "Pending first interview session evaluation.",
       barColor: "bg-purple-500",
       accentColor: "text-purple-700 dark:text-purple-300",
     },
@@ -79,10 +89,12 @@ export default function SkillReadinessRadar({
       id: "star",
       name: "STAR structure",
       score: resolvedStar,
-      previousScore: 54,
+      previousScore: hasData ? 54 : 0,
       benchmark: 75,
-      isOpportunity: true,
-      interpretation: "Biggest opportunity — answers describe actions well but lack quantifiable business & engineering results.",
+      isOpportunity: hasData,
+      interpretation: hasData
+        ? "Biggest opportunity — answers describe actions well but lack quantifiable business & engineering results."
+        : "Pending first interview session evaluation.",
       barColor: "bg-[#E87A42]",
       accentColor: "text-[#E87A42]",
     },
@@ -90,9 +102,11 @@ export default function SkillReadinessRadar({
       id: "confidence",
       name: "Confidence",
       score: resolvedConfidence,
-      previousScore: 80,
+      previousScore: hasData ? 80 : 0,
       benchmark: 80,
-      interpretation: "Authoritative vocal tone, steady eye contact, and prompt engagement without hesitation.",
+      interpretation: hasData
+        ? "Authoritative vocal tone, steady eye contact, and prompt engagement without hesitation."
+        : "Pending first interview session evaluation.",
       barColor: "bg-emerald-500",
       accentColor: "text-emerald-700 dark:text-emerald-300",
     },

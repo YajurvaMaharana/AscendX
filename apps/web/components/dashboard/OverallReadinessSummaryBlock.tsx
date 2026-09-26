@@ -29,6 +29,8 @@ export interface OverallReadinessSummaryBlockProps {
   userDisplayName?: string;
   initialTargetRole?: string;
   initialTimeline?: string;
+  totalSessions?: number;
+  onStartSession?: () => void;
 }
 
 const COMMON_ROLES = [
@@ -51,14 +53,16 @@ const TIMELINE_OPTIONS = [
 ];
 
 export default function OverallReadinessSummaryBlock({
-  score = 74,
-  monthlyDelta = 12,
-  strongestSkill = { name: "STAR Storytelling & Framing", score: 92 },
-  focusArea = { name: "Action Score & Concurrency Depth", score: 68 },
-  nextMilestone = { name: "Staff / L5 Benchmark (85/100)", targetScore: 85 },
+  score = 0,
+  monthlyDelta = 0,
+  strongestSkill,
+  focusArea,
+  nextMilestone = { name: "First Diagnostic Mock (70/100)", targetScore: 70 },
   userDisplayName = "Candidate",
   initialTargetRole,
   initialTimeline = "3 weeks until interview",
+  totalSessions = 0,
+  onStartSession,
 }: OverallReadinessSummaryBlockProps) {
   const { user, updateUserProfile } = useAuth();
 
@@ -278,10 +282,17 @@ export default function OverallReadinessSummaryBlock({
                 {score}/100
               </span>
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-bold">
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>+{monthlyDelta} points this month</span>
-            </div>
+            {totalSessions === 0 || score === 0 ? (
+              <div className="flex items-center gap-1.5 text-xs text-amber-400 font-bold">
+                <Clock className="w-3.5 h-3.5" />
+                <span>No interviews completed yet</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-bold">
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>+{monthlyDelta} points this month</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -297,10 +308,16 @@ export default function OverallReadinessSummaryBlock({
             </div>
             <div>
               <div className="text-xs font-extrabold text-white line-clamp-1">
-                {strongestSkill.name}
+                {strongestSkill?.name || "Not evaluated yet"}
               </div>
               <div className="text-sm font-black text-emerald-400 mt-0.5">
-                {strongestSkill.score}% <span className="text-[10px] text-slate-400 font-normal">Proficiency</span>
+                {strongestSkill ? (
+                  <>
+                    {strongestSkill.score}% <span className="text-[10px] text-slate-400 font-normal">Proficiency</span>
+                  </>
+                ) : (
+                  <span className="text-[11px] text-slate-400 font-normal">Pending first session</span>
+                )}
               </div>
             </div>
           </div>
@@ -315,10 +332,16 @@ export default function OverallReadinessSummaryBlock({
             </div>
             <div>
               <div className="text-xs font-extrabold text-white line-clamp-1">
-                {focusArea.name}
+                {focusArea?.name || "Diagnostic Pending"}
               </div>
               <div className="text-sm font-black text-[#E8602E] mt-0.5">
-                {focusArea.score}% <span className="text-[10px] text-slate-400 font-normal">(Needs Work)</span>
+                {focusArea ? (
+                  <>
+                    {focusArea.score}% <span className="text-[10px] text-slate-400 font-normal">(Needs Work)</span>
+                  </>
+                ) : (
+                  <span className="text-[11px] text-slate-400 font-normal">Awaiting first session</span>
+                )}
               </div>
             </div>
           </div>
@@ -333,15 +356,38 @@ export default function OverallReadinessSummaryBlock({
             </div>
             <div>
               <div className="text-xs font-extrabold text-white line-clamp-1">
-                {nextMilestone.name}
+                {nextMilestone?.name || "First Mock Interview (70/100)"}
               </div>
               <div className="text-sm font-black text-amber-400 mt-0.5">
-                {nextMilestone.targetScore}/100 <span className="text-[10px] text-slate-400 font-normal">Target</span>
+                {nextMilestone?.targetScore || 70}/100 <span className="text-[10px] text-slate-400 font-normal">Target</span>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Zero-State Action Callout Banner if user has 0 sessions */}
+      {totalSessions === 0 && (
+        <div className="relative z-10 p-3 sm:p-4 rounded-xl bg-gradient-to-r from-[#E8602E]/20 to-transparent border border-[#E8602E]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-[#E8602E] text-white flex items-center justify-center shrink-0">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <p className="text-xs text-slate-200">
+              <strong className="text-white font-bold">New candidate profile:</strong> No interviews completed yet. Complete your first practice session to establish your baseline score.
+            </p>
+          </div>
+          {onStartSession && (
+            <button
+              type="button"
+              onClick={onStartSession}
+              className="px-4 py-2 bg-[#E8602E] hover:bg-[#d85322] text-white font-bold text-xs rounded-xl shadow-xs transition-colors shrink-0 cursor-pointer self-start sm:self-auto"
+            >
+              Start First Session &rarr;
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Edit Goal Interactive Modal / Drawer ── */}
       {isEditingGoal && (

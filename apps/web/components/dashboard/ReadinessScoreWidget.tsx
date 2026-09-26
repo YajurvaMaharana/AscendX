@@ -10,45 +10,55 @@ interface ReadinessDimension {
   description: string;
 }
 
-export default function ReadinessScoreWidget() {
+export interface ReadinessScoreWidgetProps {
+  totalSessions?: number;
+  score?: number;
+}
+
+export default function ReadinessScoreWidget({
+  totalSessions = 0,
+  score,
+}: ReadinessScoreWidgetProps) {
   const [activeTab, setActiveTab] = useState<"overview" | "breakdown">("overview");
+
+  const hasData = totalSessions > 0;
 
   const dimensions: ReadinessDimension[] = [
     {
       name: "Technical Competence",
-      score: 84,
-      status: "Proficient",
+      score: hasData ? (score ? Math.min(100, Math.round(score * 1.05)) : 84) : 0,
+      status: hasData ? "Proficient" : "Needs Focus",
       description: "Algorithmic depth, data structures, and architecture scalability patterns.",
     },
     {
       name: "Behavioral & STAR Method",
-      score: 78,
-      status: "Developing",
+      score: hasData ? (score ? Math.min(100, Math.round(score * 0.95)) : 78) : 0,
+      status: hasData ? "Developing" : "Needs Focus",
       description: "Structured conflict resolution, leadership, and ownership narratives.",
     },
     {
       name: "Communication Clarity",
-      score: 91,
-      status: "Proficient",
+      score: hasData ? (score ? Math.min(100, Math.round(score * 1.08)) : 91) : 0,
+      status: hasData ? "Proficient" : "Needs Focus",
       description: "Executive delivery pacing, concise signposting, and verbal discipline.",
     },
     {
       name: "Resume-to-JD Alignment",
-      score: 86,
-      status: "Proficient",
+      score: hasData ? (score ? Math.min(100, Math.round(score * 1.02)) : 86) : 0,
+      status: hasData ? "Proficient" : "Needs Focus",
       description: "Direct match between past experience and target role technical keywords.",
     },
     {
       name: "Target-Role Readiness",
-      score: 83,
-      status: "Proficient",
+      score: hasData ? (score || 83) : 0,
+      status: hasData ? "Proficient" : "Needs Focus",
       description: "Overall composite index for Senior / L5 interview benchmarks.",
     },
   ];
 
-  const overallComposite = Math.round(
-    dimensions.reduce((acc, d) => acc + d.score, 0) / dimensions.length
-  );
+  const overallComposite = hasData
+    ? Math.round(dimensions.reduce((acc, d) => acc + d.score, 0) / dimensions.length)
+    : 0;
 
   return (
     <div className="w-full border border-slate-100 dark:border-[#242C3B] bg-white dark:bg-[#181E29] rounded-2xl p-3.5 sm:p-4 shadow-xs space-y-3">
@@ -111,12 +121,18 @@ export default function ReadinessScoreWidget() {
               {overallComposite}%
             </div>
             <div className="text-[10px] text-slate-600 dark:text-slate-300 font-medium">
-              Ready for L5/Senior Interview Simulation
+              {hasData ? "Ready for L5/Senior Interview Simulation" : "No interviews completed yet"}
             </div>
             <div className="pt-0.5">
-              <span className="inline-flex items-center gap-1 text-[9.5px] text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                <TrendingUp className="w-2.5 h-2.5" /> +4.5% vs Last Week
-              </span>
+              {hasData ? (
+                <span className="inline-flex items-center gap-1 text-[9.5px] text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                  <TrendingUp className="w-2.5 h-2.5" /> +4.5% vs Last Week
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[9.5px] text-amber-700 dark:text-amber-300 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                  Pending First Interview
+                </span>
+              )}
             </div>
           </div>
 

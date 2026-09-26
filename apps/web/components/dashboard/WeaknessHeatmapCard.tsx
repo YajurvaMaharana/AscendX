@@ -13,9 +13,66 @@ interface HeatmapCell {
   questionPrompt: string;
 }
 
-export default function WeaknessHeatmapCard() {
+export interface WeaknessHeatmapCardProps {
+  totalSessions?: number;
+}
+
+export default function WeaknessHeatmapCard({
+  totalSessions = 0,
+}: WeaknessHeatmapCardProps) {
   const router = useRouter();
   const [selectedCell, setSelectedCell] = useState<HeatmapCell | null>(null);
+
+  if (totalSessions === 0) {
+    return (
+      <div
+        role="region"
+        aria-label="Competency Heatmap Matrix"
+        className="w-full border border-slate-200/80 dark:border-[#242C3B] bg-white dark:bg-[#181E29] rounded-2xl p-5 shadow-xs space-y-4"
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-[#E87A42]/10 text-[#E87A42] flex items-center justify-center border border-[#E87A42]/30">
+              <Grid className="w-4 h-4" aria-hidden="true" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white tracking-tight">
+                Longitudinal Weakness Heatmap
+              </h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Multi-session heatmap across core competencies
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+            0 Mocks
+          </span>
+        </div>
+
+        <div className="p-8 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+            <Grid className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+              No weakness heatmap data yet
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+              Complete multiple mock interviews to map competency patterns, recurring errors, and architectural growth trajectories.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push("/interview/new")}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#E87A42] hover:bg-[#d85322] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+          >
+            <span>Start Practice Session</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const competencies = [
     "Technical Correctness",

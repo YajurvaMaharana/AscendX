@@ -44,8 +44,8 @@ export default function DashboardOverview({
   const router = useRouter();
   const { user } = useAuth();
 
-  // Hydrate session archive records
-  const { sessions } = useSessionArchive(initialSessions);
+  // Hydrate session archive records filtered specifically by current user
+  const { sessions } = useSessionArchive(initialSessions, user?.id);
 
   // Simplified interactive local states
   const [selectedLevel, setSelectedLevel] = useState("L5 Senior (Staff)");
@@ -53,6 +53,43 @@ export default function DashboardOverview({
   const [isLaunching, setIsLaunching] = useState(false);
 
   const userDisplayName = user?.email ? user.email.split("@")[0] : "Candidate";
+
+  const completedSessions = React.useMemo(() => {
+    return sessions.filter((s) => s.status === "completed");
+  }, [sessions]);
+
+  const completedCount = completedSessions.length;
+
+  // Compute dynamic readiness score based on user's completed sessions (0 if zero completed)
+  const readinessScore = React.useMemo(() => {
+    if (completedCount === 0) return 0;
+    const scores = completedSessions.map((s) => s.score || 70);
+    return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+  }, [completedSessions, completedCount]);
+
+  const monthlyDelta = React.useMemo(() => {
+    if (completedCount <= 1) return 0;
+    const sorted = [...completedSessions].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    const firstScore = sorted[0].score || 70;
+    const lastScore = sorted[sorted.length - 1].score || 70;
+    return Math.max(0, lastScore - firstScore);
+  }, [completedSessions, completedCount]);
+
+  const chartData = React.useMemo(() => {
+    if (completedCount === 0) return [];
+    return completedSessions.map((s, idx) => ({
+      id: s.id,
+      sessionIndex: idx + 1,
+      sessionLabel: `S${idx + 1}`,
+      date: new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      score: s.score || 70,
+      delta: 0,
+      milestone: s.role || "Practice Mock",
+      roleTrack: s.role || "Software Engineering",
+    }));
+  }, [completedSessions, completedCount]);
 
   const handleLaunchInterview = () => {
     setIsLaunching(true);
@@ -75,12 +112,26 @@ export default function DashboardOverview({
         {/* ========================================================================= */}
         <div className="space-y-4">
           <OverallReadinessSummaryBlock
-            score={74}
-            monthlyDelta={12}
-            strongestSkill={{ name: "STAR Storytelling & Framing", score: 92 }}
-            focusArea={{ name: "Action Score & Concurrency Depth", score: 68 }}
-            nextMilestone={{ name: "Staff / L5 Benchmark (85/100)", targetScore: 85 }}
+            score={readinessScore}
+            monthlyDelta={monthlyDelta}
+            strongestSkill={
+              completedCount > 0
+                ? { name: "Technical Problem Solving", score: Math.min(100, Math.round(readinessScore * 1.05)) }
+                : undefined
+            }
+            focusArea={
+              completedCount > 0
+                ? { name: "STAR Action Quantification", score: Math.round(readinessScore * 0.9) }
+                : undefined
+            }
+            nextMilestone={
+              completedCount === 0
+                ? { name: "First Diagnostic Mock (70/100)", targetScore: 70 }
+                : { name: "Staff / L5 Benchmark (85/100)", targetScore: 85 }
+            }
             userDisplayName={userDisplayName}
+            totalSessions={completedCount}
+            onStartSession={handleLaunchInterview}
           />
         </div>
 
@@ -95,7 +146,9 @@ export default function DashboardOverview({
                 <span>1. Recommended Next Action</span>
               </h2>
               <span className="text-slate-400 text-xs" aria-hidden="true">·</span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">Primary focus for today</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                {completedCount === 0 ? "First step for your baseline" : "Primary focus for today"}
+              </span>
             </div>
             <button
               type="button"
@@ -108,7 +161,7 @@ export default function DashboardOverview({
           </div>
 
           {/* High-Visibility Tailored Practice Recommendation Card */}
-          <ProminentRecommendationCard />
+          <ProminentRecommendationCard totalSessions={completedCount} />
         </div>
 
         {/* ========================================================================= */}
@@ -150,10 +203,11 @@ export default function DashboardOverview({
             {/* Left: Skill Comparison Horizontal Bars / Radar Profile (Col 1-5) */}
             <div className="lg:col-span-5 p-5 bg-white dark:bg-[#181E29] rounded-2xl border border-slate-200/80 dark:border-[#242C3B] shadow-xs flex flex-col justify-between">
               <SkillReadinessRadar
-                communication={78}
-                techDepth={72}
-                starStructure={61}
-                confidence={84}
+                totalSessions={completedCount}
+                communication={completedCount > 0 ? Math.min(100, Math.round(readinessScore * 1.05)) : 0}
+                techDepth={completedCount > 0 ? Math.min(100, Math.round(readinessScore * 0.98)) : 0}
+                starStructure={completedCount > 0 ? Math.min(100, Math.round(readinessScore * 0.85)) : 0}
+                confidence={completedCount > 0 ? Math.min(100, Math.round(readinessScore * 1.1)) : 0}
                 title="Core Competency Scores"
                 subtitle="Performance breakdown across core interview dimensions"
                 defaultView="bars"
@@ -162,7 +216,7 @@ export default function DashboardOverview({
 
             {/* Right: Multi-Axis Readiness Breakdown (Col 6-12) */}
             <div className="lg:col-span-7">
-              <ReadinessScoreWidget />
+              <ReadinessScoreWidget totalSessions={completedCount} score={readinessScore} />
             </div>
           </div>
         </div>
@@ -177,7 +231,7 @@ export default function DashboardOverview({
               <span>3. Recent Improvement &amp; Longitudinal Trajectory</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Track progress trends over the last 10 mock sessions and monitor weakness mitigation
+              Track progress trends over your mock sessions and monitor weakness mitigation
             </p>
           </div>
 
@@ -185,6 +239,7 @@ export default function DashboardOverview({
             {/* Competency Growth Trajectory Chart (Col 1-7) */}
             <div className="lg:col-span-7 p-5 bg-white dark:bg-[#181E29] rounded-2xl border border-slate-200/80 dark:border-[#242C3B] shadow-xs">
               <CompetencyGrowthLineChart
+                data={chartData}
                 title="Progress Over Time"
                 subtitle="Session-by-session score trajectory & competency growth"
                 initialFilter="30d"
@@ -193,7 +248,7 @@ export default function DashboardOverview({
 
             {/* Longitudinal Weakness Heatmap (Col 8-12) */}
             <div className="lg:col-span-5">
-              <WeaknessHeatmapCard />
+              <WeaknessHeatmapCard totalSessions={completedCount} />
             </div>
           </div>
         </div>
@@ -213,20 +268,21 @@ export default function DashboardOverview({
           </div>
 
           {/* Delivery Telemetry 4-Metric Grid */}
-          <DeliveryTelemetry />
+          <DeliveryTelemetry totalSessions={completedCount} />
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch pt-2">
             {/* AI STAR Rubric Feedback Card (Col 1-6) */}
             <div className="lg:col-span-6">
               <StarRubricFeedbackCard
+                totalSessions={completedCount}
                 onPracticeAction={() => router.push("/interview/new?type=behavioral&focus=action")}
               />
             </div>
 
             {/* Interview Consensus & Executive Summary (Col 7-12) */}
             <div className="lg:col-span-6 space-y-5 flex flex-col justify-between">
-              <InterviewConsensusCard />
-              <ExecutiveSummaryCard />
+              <InterviewConsensusCard totalSessions={completedCount} />
+              <ExecutiveSummaryCard totalSessions={completedCount} score={readinessScore} />
             </div>
           </div>
         </div>

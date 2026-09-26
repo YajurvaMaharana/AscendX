@@ -26,13 +26,74 @@ export interface StarCategoryItem {
 }
 
 interface StarRubricFeedbackCardProps {
+  totalSessions?: number;
   onPracticeAction?: () => void;
 }
 
 export default function StarRubricFeedbackCard({
+  totalSessions = 0,
   onPracticeAction,
 }: StarRubricFeedbackCardProps) {
   const router = useRouter();
+
+  const handleStartPractice = () => {
+    if (onPracticeAction) {
+      onPracticeAction();
+    } else {
+      router.push("/interview/new?type=behavioral&focus=action");
+    }
+  };
+
+  if (totalSessions === 0) {
+    return (
+      <div
+        role="region"
+        aria-label="STAR Rubric Behavioral Feedback"
+        className="w-full border border-slate-200/80 dark:border-[#242C3B] bg-white dark:bg-[#181E29] rounded-2xl p-5 shadow-xs space-y-4"
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-[#FFF0E6] dark:bg-[#2F2119] text-[#E87A42] flex items-center justify-center font-bold">
+              <Sparkles className="w-4 h-4 fill-current" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white tracking-tight">
+                AI STAR Rubric Feedback
+              </h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Evaluation across Situation, Task, Action, and Result
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+            0 Evaluated Answers
+          </span>
+        </div>
+
+        <div className="p-8 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
+            <Lightbulb className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+              No STAR evaluations recorded yet
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+              Start a behavioral interview to evaluate your Situation context, Task scope, Action ownership, and Result metrics.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleStartPractice}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#E87A42] hover:bg-[#d85322] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+          >
+            <span>Start Behavioral Session</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const categories: StarCategoryItem[] = [
     {
@@ -84,14 +145,6 @@ export default function StarRubricFeedbackCard({
       suggestion: "Link engineering gains to business impact (e.g. customer retention or infrastructure cost savings).",
     },
   ];
-
-  const handleStartPractice = () => {
-    if (onPracticeAction) {
-      onPracticeAction();
-    } else {
-      router.push("/interview/new?type=behavioral&focus=action");
-    }
-  };
 
   return (
     <div

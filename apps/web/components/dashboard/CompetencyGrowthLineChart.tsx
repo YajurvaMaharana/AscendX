@@ -15,58 +15,7 @@ export interface SessionDataPoint {
   roleTrack: string;
 }
 
-const ALL_SESSIONS_DATA: SessionDataPoint[] = [
-  {
-    id: "s1",
-    sessionIndex: 1,
-    sessionLabel: "S1 (Baseline)",
-    date: "Sep 02",
-    score: 68,
-    delta: 0,
-    milestone: "Diagnostic Baseline Assessment",
-    roleTrack: "Full-Stack Core",
-  },
-  {
-    id: "s2",
-    sessionIndex: 2,
-    sessionLabel: "S2",
-    date: "Sep 09",
-    score: 74,
-    delta: 6,
-    milestone: "Concurrency & Lock-Free Caches",
-    roleTrack: "Distributed Systems",
-  },
-  {
-    id: "s3",
-    sessionIndex: 3,
-    sessionLabel: "S3",
-    date: "Sep 14",
-    score: 78,
-    delta: 4,
-    milestone: "Cross-Team Conflict & Leadership",
-    roleTrack: "Behavioral STAR",
-  },
-  {
-    id: "s4",
-    sessionIndex: 4,
-    sessionLabel: "S4",
-    date: "Sep 18",
-    score: 80,
-    delta: 2,
-    milestone: "High-Throughput Ingestion Engine",
-    roleTrack: "System Design",
-  },
-  {
-    id: "s5",
-    sessionIndex: 5,
-    sessionLabel: "S5 (Latest)",
-    date: "Sep 23",
-    score: 82,
-    delta: 2,
-    milestone: "Full-Stack Architecture & STAR Polish",
-    roleTrack: "Senior Full-Stack",
-  },
-];
+const ALL_SESSIONS_DATA: SessionDataPoint[] = [];
 
 export type GenericChartItem =
   | SessionDataPoint
@@ -92,12 +41,12 @@ export default function CompetencyGrowthLineChart({
 
   // Normalize incoming data if passed as generic { x, y, label }
   const normalizedData: SessionDataPoint[] = useMemo(() => {
-    if (!data || data.length === 0) return ALL_SESSIONS_DATA;
+    if (!data || data.length === 0) return [];
     return data.map((item, i, arr) => {
       if ("sessionIndex" in item && "date" in item) {
         return item as SessionDataPoint;
       }
-      const scoreVal = (item as any).score ?? (item as any).y ?? 70;
+      const scoreVal = (item as any).score ?? (item as any).y ?? 0;
       const prevScoreVal = i > 0 ? ((arr[i - 1] as any).score ?? (arr[i - 1] as any).y ?? scoreVal) : scoreVal;
       const lbl = (item as any).label || `Session #${i + 1}`;
 
@@ -105,7 +54,7 @@ export default function CompetencyGrowthLineChart({
         id: `sess-${i + 1}`,
         sessionIndex: i + 1,
         sessionLabel: lbl.includes(":") ? lbl.split(":")[0] : `S${i + 1}`,
-        date: (item as any).date || `Sep ${String(Math.min(23, i * 4 + 2)).padStart(2, "0")}`,
+        date: (item as any).date || `Day ${i + 1}`,
         score: scoreVal,
         delta: scoreVal - prevScoreVal,
         milestone: lbl,
@@ -113,6 +62,26 @@ export default function CompetencyGrowthLineChart({
       };
     });
   }, [data]);
+
+  // If no data exists, render clean zero state
+  if (normalizedData.length === 0) {
+    return (
+      <div className="w-full h-full flex flex-col justify-between space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">{title}</h3>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">{subtitle}</p>
+          </div>
+          <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+            0 Sessions
+          </span>
+        </div>
+        <div className="py-6">
+          <DashboardEmptyState type="no_sessions" />
+        </div>
+      </div>
+    );
+  }
 
   // Filter sessions based on selection
   const filteredData = useMemo(() => {
@@ -128,12 +97,9 @@ export default function CompetencyGrowthLineChart({
   }, [normalizedData, filter]);
 
   // Derived comparative metrics
-  const firstSession = filteredData[0] || ALL_SESSIONS_DATA[0];
-  const latestSession = filteredData[filteredData.length - 1] || ALL_SESSIONS_DATA[ALL_SESSIONS_DATA.length - 1];
-  const prevSession =
-    filteredData.length > 1
-      ? filteredData[filteredData.length - 2]
-      : ALL_SESSIONS_DATA[Math.max(0, ALL_SESSIONS_DATA.length - 2)];
+  const firstSession = filteredData[0] || { score: 0, date: "", milestone: "", roleTrack: "", sessionIndex: 1, sessionLabel: "S1", id: "s1", delta: 0 };
+  const latestSession = filteredData[filteredData.length - 1] || firstSession;
+  const prevSession = filteredData.length > 1 ? filteredData[filteredData.length - 2] : firstSession;
 
   const totalPointsGrowth = latestSession.score - firstSession.score;
   const recentSessionDelta = latestSession.score - prevSession.score;

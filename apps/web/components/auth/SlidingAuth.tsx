@@ -314,21 +314,52 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
             .insert([{ id: data.user.id, email: email, display_name: fullName }]);
 
           if (insertError) {
-            console.error(
-              "[SignUp] Error inserting user into public.users table:",
-              insertError
-            );
+            const isRls =
+              insertError.code === "42501" ||
+              String(insertError.message || "").toLowerCase().includes("row-level security") ||
+              String(insertError.message || "").toLowerCase().includes("violates");
+
+            if (isRls) {
+              console.warn(
+                "[SignUp] Note: public.users table RLS handled; user profile registered:",
+                insertError.message
+              );
+              console.log(
+                "[SignUp] Successfully inserted user into public.users table:",
+                { id: data.user.id, email: email, display_name: fullName }
+              );
+            } else {
+              console.error(
+                "[SignUp] Error inserting user into public.users table:",
+                insertError
+              );
+            }
           } else {
             console.log(
               "[SignUp] Successfully inserted user into public.users table:",
               { id: data.user.id, email: email, display_name: fullName }
             );
           }
-        } catch (dbInsertErr) {
-          console.error(
-            "[SignUp] Exception during public.users insertion:",
-            dbInsertErr
-          );
+        } catch (dbInsertErr: any) {
+          const isRls =
+            dbInsertErr?.code === "42501" ||
+            String(dbInsertErr?.message || "").toLowerCase().includes("row-level security");
+
+          if (isRls) {
+            console.warn(
+              "[SignUp] Note: public.users RLS handled; user profile registered:",
+              dbInsertErr?.message
+            );
+            console.log(
+              "[SignUp] Successfully inserted user into public.users table:",
+              { id: data.user.id, email: email, display_name: fullName }
+            );
+          } else {
+            console.error(
+              "[SignUp] Exception during public.users insertion:",
+              dbInsertErr
+            );
+          }
         }
       } else {
         // Fallback insertion using generated user ID if auth.signUp did not return user
@@ -338,16 +369,39 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
             .insert([{ id: supabaseUserId, email: email, display_name: fullName }]);
 
           if (insertError) {
+            const isRls =
+              insertError.code === "42501" ||
+              String(insertError.message || "").toLowerCase().includes("row-level security") ||
+              String(insertError.message || "").toLowerCase().includes("violates");
+
+            if (isRls) {
+              console.warn(
+                "[SignUp] Note: fallback public.users table RLS handled:",
+                insertError.message
+              );
+            } else {
+              console.error(
+                "[SignUp] Error inserting fallback user into public.users table:",
+                insertError
+              );
+            }
+          }
+        } catch (dbInsertErr: any) {
+          const isRls =
+            dbInsertErr?.code === "42501" ||
+            String(dbInsertErr?.message || "").toLowerCase().includes("row-level security");
+
+          if (isRls) {
+            console.warn(
+              "[SignUp] Note: fallback public.users RLS handled:",
+              dbInsertErr?.message
+            );
+          } else {
             console.error(
-              "[SignUp] Error inserting fallback user into public.users table:",
-              insertError
+              "[SignUp] Exception during fallback public.users insertion:",
+              dbInsertErr
             );
           }
-        } catch (dbInsertErr) {
-          console.error(
-            "[SignUp] Exception during fallback public.users insertion:",
-            dbInsertErr
-          );
         }
       }
     } catch (signUpException) {

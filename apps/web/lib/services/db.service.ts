@@ -573,17 +573,20 @@ export async function getSessionById(id: string): Promise<InterviewSession | nul
 }
 
 export async function getSessionsByUserId(userId: string): Promise<InterviewSession[]> {
+  if (!userId || !userId.trim()) {
+    return [];
+  }
+
   const client = getSupabaseAdminClient();
   if (client) {
     try {
-      const queryId = isValidUUID(userId) ? userId : '00000000-0000-0000-0000-000000000001';
       const { data: sessions, error } = await client
         .from('interview_sessions')
         .select()
-        .or(`user_id.eq.${queryId},user_id.eq.${userId}`)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (!error && sessions && sessions.length > 0) {
+      if (!error && sessions) {
         sessions.forEach((s) => inMemorySessions.set(s.id, s as InterviewSession));
         return sessions as InterviewSession[];
       }
@@ -592,10 +595,10 @@ export async function getSessionsByUserId(userId: string): Promise<InterviewSess
     }
   }
 
-  // Return from in-memory cache
+  // Return from in-memory cache strictly for this user
   const result: InterviewSession[] = [];
   inMemorySessions.forEach((sess) => {
-    if (sess.user_id === userId || !userId) {
+    if (sess.user_id === userId) {
       result.push(sess);
     }
   });

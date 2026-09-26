@@ -5,11 +5,13 @@
 
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
--- Allow insert into public.users during sign-up for authenticated and anon users
+-- Allow insert into public.users during sign-up for authenticated, anon, and service_role
 DROP POLICY IF EXISTS "Allow users insert on signup" ON public.users;
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.users;
 CREATE POLICY "Allow users insert on signup"
   ON public.users
   FOR INSERT
+  TO authenticated, anon, service_role
   WITH CHECK (true);
 
 -- Allow users to select profile data

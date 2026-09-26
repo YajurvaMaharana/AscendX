@@ -123,14 +123,50 @@ const RECOMMENDED_DRILLS: RecommendationDrill[] = [
   },
 ];
 
-export default function ProminentRecommendationCard() {
+export interface ProminentRecommendationCardProps {
+  totalSessions?: number;
+}
+
+const FIRST_SESSION_DRILL: RecommendationDrill = {
+  id: "first-session-diagnostic",
+  title: "Diagnostic Baseline Assessment",
+  category: "Full-Stack Core & System Fundamentals",
+  focusArea: "Baseline Technical & Delivery Calibration",
+  targetMetric: "Establish First Readiness Score",
+  durationMinutes: 15,
+  difficulty: "Beginner",
+  persona: "tech-grinder",
+  personaName: "Alex Vance (Lead Architect)",
+  interviewType: "Technical",
+  tailoredReason:
+    "You have not completed any mock sessions yet. Complete this initial diagnostic session to establish your baseline readiness score, evaluate your problem-solving approach, and generate personalized drill recommendations.",
+  promptText:
+    "Welcome to your initial diagnostic interview. Let's start with your core engineering foundation: Walk me through a challenging technical problem you solved recently, your architectural trade-offs, and how you verified correctness.",
+  expectedOutcome:
+    "Establish your baseline across Technical Depth, Communication Clarity, and Problem-Solving approach.",
+  readinessDelta: "Calibrates Initial Score",
+  rubricBreakdown: {
+    situation: 0,
+    task: 0,
+    action: 0,
+    result: 0,
+  },
+};
+
+export default function ProminentRecommendationCard({
+  totalSessions = 0,
+}: ProminentRecommendationCardProps = {}) {
   const router = useRouter();
-  const [selectedDrillId, setSelectedDrillId] = useState<string>("star-challenge-action");
+  const [selectedDrillId, setSelectedDrillId] = useState<string>(
+    totalSessions === 0 ? "first-session-diagnostic" : "star-challenge-action"
+  );
   const [showViewWhyModal, setShowViewWhyModal] = useState<boolean>(false);
   const [isStarting, setIsStarting] = useState<boolean>(false);
 
+  const availableDrills = totalSessions === 0 ? [FIRST_SESSION_DRILL, ...RECOMMENDED_DRILLS] : RECOMMENDED_DRILLS;
+
   const activeDrill =
-    RECOMMENDED_DRILLS.find((d) => d.id === selectedDrillId) || RECOMMENDED_DRILLS[0];
+    availableDrills.find((d) => d.id === selectedDrillId) || availableDrills[0];
 
   const handleStartPractice = () => {
     setIsStarting(true);

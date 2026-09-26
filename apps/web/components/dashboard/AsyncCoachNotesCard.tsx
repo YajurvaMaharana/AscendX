@@ -4,9 +4,57 @@ import React, { useState } from "react";
 import { MessageSquareText, Sparkles, CheckCircle2, ArrowRight, UserCheck, ShieldAlert, BookOpen } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export default function AsyncCoachNotesCard() {
+export interface AsyncCoachNotesCardProps {
+  totalSessions?: number;
+}
+
+export default function AsyncCoachNotesCard({
+  totalSessions = 0,
+}: AsyncCoachNotesCardProps) {
   const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(false);
+
+  if (totalSessions === 0) {
+    return (
+      <div className="w-full border border-indigo-500/30 bg-gradient-to-br from-[#F5F7FF] to-[#EEF2FF] dark:from-[#191E2E] dark:to-[#151926] rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center shrink-0 shadow-sm">
+            <MessageSquareText className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">
+              Async Coach Notes & Mentorship Synthesis
+            </h3>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Longitudinal analysis across multiple mock sessions
+            </p>
+          </div>
+        </div>
+
+        <div className="p-6 text-center space-y-3 bg-white/70 dark:bg-[#131822]/70 rounded-xl border border-indigo-500/20">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-500 flex items-center justify-center mx-auto">
+            <BookOpen className="w-5 h-5" />
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+              No coaching synthesis available yet
+            </h4>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+              Complete your first mock interview to generate personalized longitudinal coach notes, recurring error patterns, and study roadmaps.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push("/interview/new")}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Start Practice Session</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Longitudinal synthesized coaching data
   const coachNote = {

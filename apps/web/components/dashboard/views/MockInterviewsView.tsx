@@ -26,6 +26,7 @@ import { PERSONAS } from "@/types/persona";
 import type { PersonaId } from "@/types/persona";
 import PreFlightModal from "@/components/interview/PreFlightModal";
 import { useSessionArchive } from "@/hooks/useSessionArchive";
+import { useAuth } from "@/context/AuthContext";
 
 export interface MockInterviewsViewProps {
   initialSessions?: Array<{
@@ -121,6 +122,7 @@ export default function MockInterviewsView({
   const [showPreFlightModal, setShowPreFlightModal] = useState(false);
 
   // Session Archive Data Fetching & Hydration Hook
+  const { user } = useAuth();
   const {
     sessions,
     filteredSessions,
@@ -131,7 +133,14 @@ export default function MockInterviewsView({
     difficultyFilter,
     setDifficultyFilter,
     resetFilters,
-  } = useSessionArchive(initialSessions);
+  } = useSessionArchive(initialSessions, user?.id);
+
+  const avgScore = React.useMemo(() => {
+    if (sessions.length === 0) return 0;
+    const scores = sessions.map((s) => s.score || 0).filter((sc) => sc > 0);
+    if (scores.length === 0) return 0;
+    return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+  }, [sessions]);
 
   const currentPreset = ROLE_PRESETS.find((r) => r.id === selectedRolePreset) || ROLE_PRESETS[0];
 
@@ -185,7 +194,7 @@ export default function MockInterviewsView({
             <div className="px-3.5 py-2 rounded-xl bg-white dark:bg-[#1C2230] border border-slate-200/80 dark:border-slate-800 text-center">
               <span className="text-[10px] text-slate-400 block font-medium">Avg Score</span>
               <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
-                87.4%
+                {avgScore > 0 ? `${avgScore}%` : "—"}
               </span>
             </div>
             <div className="px-3.5 py-2 rounded-xl bg-white dark:bg-[#1C2230] border border-slate-200/80 dark:border-slate-800 text-center">

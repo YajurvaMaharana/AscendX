@@ -13,7 +13,15 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-export default function InterviewConsensusCard() {
+export interface InterviewConsensusCardProps {
+  totalSessions?: number;
+}
+
+export default function InterviewConsensusCard({
+  totalSessions = 0,
+}: InterviewConsensusCardProps) {
+  const hasData = totalSessions > 0;
+
   return (
     <div
       role="region"
@@ -39,7 +47,7 @@ export default function InterviewConsensusCard() {
         {/* Status Badge */}
         <span className="text-xs font-extrabold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-          <span>Strong Hire Trajectory</span>
+          <span>{hasData ? "Strong Hire Trajectory" : "Awaiting First Session"}</span>
         </span>
       </div>
 
@@ -49,10 +57,15 @@ export default function InterviewConsensusCard() {
         <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#131822] border border-slate-200/60 dark:border-slate-800/80 space-y-1.5">
           <div className="flex justify-between items-center text-xs font-bold">
             <span className="text-slate-700 dark:text-slate-300">Hire Signal Probability</span>
-            <span className="text-emerald-600 dark:text-emerald-400 font-mono">88% (L5 Staff Target)</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-mono">
+              {hasData ? "88% (L5 Staff Target)" : "0% (Pending Evaluation)"}
+            </span>
           </div>
           <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div className="h-full bg-emerald-500 rounded-full w-[88%]" />
+            <div
+              className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+              style={{ width: hasData ? "88%" : "0%" }}
+            />
           </div>
         </div>
 
@@ -63,7 +76,9 @@ export default function InterviewConsensusCard() {
             <span>Demonstrated Strengths</span>
           </div>
           <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed pl-5">
-            Decisive distributed consensus reasoning, clean data modeling trade-offs, and STAR structured delivery under pressure.
+            {hasData
+              ? "Decisive distributed consensus reasoning, clean data modeling trade-offs, and STAR structured delivery under pressure."
+              : "Complete your first practice mock to establish consensus signals across evaluator styles."}
           </p>
         </div>
 
@@ -74,14 +89,18 @@ export default function InterviewConsensusCard() {
             <span>Alignment Flags</span>
           </div>
           <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed pl-5">
-            High technical depth (92%), clear architectural ownership, and proactive edge-case error boundary handling.
+            {hasData
+              ? "High technical depth, clear architectural ownership, and proactive edge-case error boundary handling."
+              : "No evaluator panel notes recorded yet. Launch your first session to calibrate interviewer impressions."}
           </p>
         </div>
       </div>
 
       {/* Footer Link */}
       <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
-        <span className="text-slate-500 dark:text-slate-400">Panel Confidence: <strong className="text-slate-900 dark:text-white">94%</strong></span>
+        <span className="text-slate-500 dark:text-slate-400">
+          Panel Confidence: <strong className="text-slate-900 dark:text-white">{hasData ? "94%" : "0%"}</strong>
+        </span>
         <Link
           href="/feedback-hub"
           className="font-bold text-[#E87A42] hover:underline flex items-center gap-1 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#E87A42]"

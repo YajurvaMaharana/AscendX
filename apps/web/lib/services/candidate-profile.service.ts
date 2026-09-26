@@ -43,12 +43,12 @@ export async function getCandidateProfile(userId: string): Promise<CandidateInte
           id: data.id,
           userId: data.user_id,
           perTopicStrengths: data.per_topic_strengths || {},
-          communicationMetrics: data.communication_metrics || { avgWpm: 135, fillerWordsPerMinute: 1.2, clarityScore: 82, articulationRating: 'Strong' },
+          communicationMetrics: data.communication_metrics || { avgWpm: 0, fillerWordsPerMinute: 0, clarityScore: 0, articulationRating: 'Not Started' },
           repeatedWeaknesses: data.repeated_weaknesses || [],
           verifiedResumeEvidence: data.verified_resume_evidence || [],
           recommendedDrills: data.recommended_drills || [],
           totalSessionsCompleted: data.total_sessions_completed || 0,
-          overallReadinessScore: data.overall_readiness_score || 50,
+          overallReadinessScore: data.overall_readiness_score || 0,
           updatedAt: data.updated_at,
         };
       }
@@ -57,25 +57,18 @@ export async function getCandidateProfile(userId: string): Promise<CandidateInte
     console.warn('[getCandidateProfile] Supabase query fallback to memory:', err);
   }
 
-  // Fallback memory profile
+  // Fallback memory profile initialized to clean zero-state for new users
   if (!memoryProfileStore.has(userId)) {
     memoryProfileStore.set(userId, {
       id: `profile-${userId}`,
       userId,
-      perTopicStrengths: {
-        'System Architecture & Scale': { score: 72, level: 'Advanced', trend: 'up', sessionsCount: 1 },
-        'Data Structures & Algorithms': { score: 68, level: 'Competent', trend: 'steady', sessionsCount: 1 },
-        'Concurrency & Performance': { score: 65, level: 'Competent', trend: 'up', sessionsCount: 1 },
-      },
-      communicationMetrics: { avgWpm: 140, fillerWordsPerMinute: 1.5, clarityScore: 80, articulationRating: 'Good' },
-      repeatedWeaknesses: ['Handling multi-region partition failure modes', 'Asymptotic space complexity trade-offs'],
-      verifiedResumeEvidence: ['Built distributed caching layer with Redis & Kafka', 'Scaled microservices to 10k QPS'],
-      recommendedDrills: [
-        { title: 'Distributed Lock & Quorum Drill', targetTopic: 'Concurrency & Performance', difficulty: 'Hard', description: 'Practice handling split-brain scenarios in distributed consensus.' },
-        { title: 'Database Sharding & Partitioning', targetTopic: 'System Architecture & Scale', difficulty: 'Medium', description: 'Design consistent hashing keys for high-throughput multi-tenant tables.' },
-      ],
-      totalSessionsCompleted: 2,
-      overallReadinessScore: 74,
+      perTopicStrengths: {},
+      communicationMetrics: { avgWpm: 0, fillerWordsPerMinute: 0, clarityScore: 0, articulationRating: 'Not Started' },
+      repeatedWeaknesses: [],
+      verifiedResumeEvidence: [],
+      recommendedDrills: [],
+      totalSessionsCompleted: 0,
+      overallReadinessScore: 0,
       updatedAt: new Date().toISOString(),
     });
   }

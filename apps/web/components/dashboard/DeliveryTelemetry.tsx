@@ -130,12 +130,14 @@ const SPEAKING_METRICS: TelemetryMetric[] = [
 ];
 
 export interface DeliveryTelemetryProps {
+  totalSessions?: number;
   isVoiceInactive?: boolean;
   isSyncing?: boolean;
   onEnableVoice?: () => void;
 }
 
 export default function DeliveryTelemetry({
+  totalSessions = 0,
   isVoiceInactive = false,
   isSyncing = false,
   onEnableVoice,
@@ -146,6 +148,35 @@ export default function DeliveryTelemetry({
   const toggleExpand = (id: string) => {
     setExpandedMetric(expandedMetric === id ? null : id);
   };
+
+  if (totalSessions === 0) {
+    return (
+      <div
+        role="region"
+        aria-label="No speech telemetry recorded"
+        className="w-full p-6 sm:p-8 bg-white dark:bg-[#181E29] rounded-2xl border border-slate-200/80 dark:border-[#242C3B] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-[#E87A42] flex items-center justify-center shrink-0 border border-orange-500/20">
+            <Mic className="w-6 h-6" aria-hidden="true" />
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+              No speech telemetry recorded yet
+            </h4>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-md">
+              Complete your first live or voice simulation session to unlock acoustic telemetry tracking speech pace, filler word frequency, and phonetic clarity.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[11px] font-mono font-bold px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700">
+            0 Voice Mocks
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   if (isSyncing) {
     return (

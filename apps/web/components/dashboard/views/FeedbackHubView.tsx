@@ -212,77 +212,17 @@ export default function FeedbackHubView() {
               setSelectedSessionId(formatted[0].id);
             }
           } else {
-            const sample: InterviewSessionTranscript = {
-              id: "demo-session-1",
-              role: "Senior Full-Stack Engineer",
-              type: "technical",
-              difficulty: "hard",
-              status: "completed",
-              created_at: new Date(Date.now() - 86400000).toISOString(),
-              overall_score: 92,
-              summary: "Exceptional system design reasoning, clear concurrency trade-offs, and strong STAR communication.",
-              categories: [
-                { label: "Technical Proficiency & Accuracy", score: 94, comment: "Outstanding command of CRDT synchronization, vector clocks, and offline IndexedDB persistence.", rubric_level: "Advanced" },
-                { label: "Communication & Clarity", score: 90, comment: "Structured explanations clearly and concisely without unnecessary jargon.", rubric_level: "Proficient" },
-                { label: "Structured Reasoning & Trade-offs", score: 91, comment: "Proactively evaluated latency vs consistency trade-offs during network partitions.", rubric_level: "Advanced" },
-              ],
-              evidence: [
-                { claim: "Real-time synchronization strategy", transcriptQuote: "To support real-time CRDT synchronization, I would maintain local state updates using Yjs over WebSockets.", evaluation: "Demonstrates robust production familiarity with collaborative editing primitives." },
-                { claim: "Offline resilience & network partitions", transcriptQuote: "I'd use IndexedDB locally to queue offline mutations, then reconcile state vectors upon reconnection using vector clocks.", evaluation: "Excellent system reliability design." }
-              ],
-              missing_key_elements: ["Detailed rate-limiting strategy for WebSocket reconnection storms"],
-              strengths: [
-                "Exceptional depth in collaborative real-time system design",
-                "Clear articulation of offline-first persistence patterns",
-                "Professional and structured communication style"
-              ],
-              weaknesses: [
-                "Could discuss TLS encryption overhead for WebSockets in greater depth"
-              ],
-              targeted_recommendations: [
-                "Incorporate edge-case mitigation for reconnection storms in distributed systems",
-                "Continue utilizing clear vector clock terminology when discussing distributed reconciliation"
-              ],
-              messages: [
-                {
-                  id: "msg-1",
-                  sender_role: "ai",
-                  content: "Welcome to your Senior Full-Stack Engineer interview. Let's start with system design: how would you architect a real-time collaborative document editor with conflict-free replicated data types (CRDTs)?",
-                  created_at: new Date(Date.now() - 86400000).toISOString(),
-                },
-                {
-                  id: "msg-2",
-                  sender_role: "user",
-                  content: "To support real-time CRDT synchronization, I would maintain local state updates using Yjs over WebSockets, with Redis fallback and optimistic client-side mutations.",
-                  audio_url: "sample-audio-1.webm",
-                  created_at: new Date(Date.now() - 86300000).toISOString(),
-                },
-                {
-                  id: "msg-3",
-                  sender_role: "ai",
-                  content: "That's a robust choice. How do you handle network partitions and offline persistence before re-establishing the WebSocket connection?",
-                  created_at: new Date(Date.now() - 86200000).toISOString(),
-                },
-                {
-                  id: "msg-4",
-                  sender_role: "user",
-                  content: "I'd use IndexedDB locally to queue offline mutations, then reconcile state vectors upon reconnection using vector clocks.",
-                  audio_url: "sample-audio-2.webm",
-                  created_at: new Date(Date.now() - 86100000).toISOString(),
-                },
-              ],
-              privacy_settings: {
-                saveAudioReplays: true,
-                encryptArchive: true,
-                shareable: false,
-              },
-            };
-            setSessions([sample]);
-            setSelectedSessionId(sample.id);
+            setSessions([]);
+            setSelectedSessionId(null);
           }
+        } else {
+          setSessions([]);
+          setSelectedSessionId(null);
         }
       } catch (err) {
         console.warn("Failed to load sessions:", err);
+        setSessions([]);
+        setSelectedSessionId(null);
       } finally {
         setIsLoading(false);
       }
@@ -749,8 +689,15 @@ export default function FeedbackHubView() {
                 </div>
               </div>
             ) : (
-              <div className="rounded-3xl bg-white dark:bg-[#151922] border border-slate-200/80 dark:border-slate-800 p-12 text-center text-slate-400 text-sm">
-                Select a past session from the left archive to inspect transcript and audio replays.
+              <div className="rounded-3xl bg-white dark:bg-[#151922] border border-slate-200/80 dark:border-slate-800 p-12 text-center text-slate-400 text-sm space-y-2">
+                <p className="font-semibold text-slate-600 dark:text-slate-300">
+                  {sessions.length === 0 ? "No interviews completed yet" : "Select a past session from the left archive to inspect transcript and audio replays."}
+                </p>
+                {sessions.length === 0 && (
+                  <p className="text-xs text-slate-400">
+                    Complete your first mock interview to view detailed answer transcripts, evaluator scores, and audio recordings.
+                  </p>
+                )}
               </div>
             )}
           </div>

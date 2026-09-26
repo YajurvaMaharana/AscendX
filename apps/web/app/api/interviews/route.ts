@@ -1,8 +1,27 @@
 import { NextResponse } from 'next/server';
-import { createSession, createMessage, syncUserToDatabase } from '@/lib/services/db.service';
+import { createSession, createMessage, syncUserToDatabase, getSessionsByUserId } from '@/lib/services/db.service';
 import { generateOpeningQuestion } from '@/lib/services/ai-engine/interviewer';
 import { createClient } from '@/lib/supabase/server';
 import type { InterviewType, Difficulty } from '@/lib/types/database.types';
+
+export async function GET() {
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) {
+      return NextResponse.json({ sessions: [] });
+    }
+
+    const sessions = await getSessionsByUserId(user.id);
+    return NextResponse.json({ sessions: sessions || [] });
+  } catch (err: any) {
+    console.warn('[api/interviews] GET error:', err?.message || err);
+    return NextResponse.json({ sessions: [] });
+  }
+}
 
 export async function POST(req: Request) {
   try {

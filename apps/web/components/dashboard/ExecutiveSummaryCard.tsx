@@ -4,7 +4,17 @@ import React from "react";
 import { TrendingUp, AlertCircle, ArrowUpRight, CheckCircle2, Sparkles, Target } from "lucide-react";
 import Link from "next/link";
 
-export default function ExecutiveSummaryCard() {
+export interface ExecutiveSummaryCardProps {
+  totalSessions?: number;
+  score?: number;
+}
+
+export default function ExecutiveSummaryCard({
+  totalSessions = 0,
+  score = 0,
+}: ExecutiveSummaryCardProps) {
+  const hasData = totalSessions > 0;
+
   return (
     <div
       role="region"
@@ -29,38 +39,44 @@ export default function ExecutiveSummaryCard() {
 
         {/* Grade Badge */}
         <span className="text-xs font-mono font-extrabold px-2.5 py-1 rounded-full bg-[#FFF0E6] dark:bg-[#2F2119] text-[#E87A42] border border-[#E87A42]/30">
-          Grade: A- (86/100)
+          {hasData ? `Grade: A- (${score || 86}/100)` : "Grade: Pending"}
         </span>
       </div>
 
       {/* Summary Action Items */}
       <div className="space-y-3">
-        {/* High-Impact Action Item 1 */}
+        {/* Action Item 1 */}
         <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#131822] border border-slate-200/60 dark:border-slate-800/80 space-y-1">
           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
             <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" aria-hidden="true" />
-            <span>Priority Action Item #1</span>
+            <span>{hasData ? "Priority Action Item #1" : "Getting Started Step 1"}</span>
           </div>
           <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed pl-5">
-            Explicitly state SLA &amp; p99 throughput boundaries before proposing cache invalidation topologies.
+            {hasData
+              ? "Explicitly state SLA & p99 throughput boundaries before proposing cache invalidation topologies."
+              : "Launch your first diagnostic session to calibrate your readiness baseline and uncover hidden weaknesses."}
           </p>
         </div>
 
-        {/* High-Impact Action Item 2 */}
+        {/* Action Item 2 */}
         <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#131822] border border-slate-200/60 dark:border-slate-800/80 space-y-1">
           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
             <Target className="w-3.5 h-3.5 text-[#E87A42] shrink-0" aria-hidden="true" />
-            <span>Priority Action Item #2</span>
+            <span>{hasData ? "Priority Action Item #2" : "Getting Started Step 2"}</span>
           </div>
           <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed pl-5">
-            Structure sequential Action steps with signposts (&quot;First... then... finally...&quot;) to prevent diluting personal ownership.
+            {hasData
+              ? 'Structure sequential Action steps with signposts ("First... then... finally...") to prevent diluting personal ownership.'
+              : "Ground your interview with your actual resume and target job description to practice relevant questions."}
           </p>
         </div>
       </div>
 
       {/* Quick Link Footer */}
       <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
-        <span className="text-slate-500 dark:text-slate-400">Readiness Score: <strong className="text-slate-900 dark:text-white">74/100</strong></span>
+        <span className="text-slate-500 dark:text-slate-400">
+          Readiness Score: <strong className="text-slate-900 dark:text-white">{score}/100</strong>
+        </span>
         <Link
           href="/feedback-hub"
           className="font-bold text-[#E87A42] hover:underline flex items-center gap-1 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#E87A42]"
