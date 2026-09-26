@@ -8,6 +8,8 @@ export interface UserRecord {
   target_role: string;
   createdAt: string;
   verified: boolean;
+  profile_completed?: boolean;
+  is_new_user?: boolean;
 }
 
 const STORAGE_KEY = "ascendx_user_database";
@@ -22,6 +24,8 @@ const SEED_USERS: UserRecord[] = [
     target_role: "Senior Full-Stack Engineer",
     createdAt: new Date().toISOString(),
     verified: true,
+    profile_completed: true,
+    is_new_user: false,
   },
   {
     id: "user-seed-2",
@@ -31,6 +35,8 @@ const SEED_USERS: UserRecord[] = [
     target_role: "Senior Full-Stack Engineer",
     createdAt: new Date().toISOString(),
     verified: true,
+    profile_completed: true,
+    is_new_user: false,
   },
 ];
 
@@ -163,6 +169,8 @@ export function registerUser(input: {
     target_role: targetRole,
     createdAt: new Date().toISOString(),
     verified: true,
+    profile_completed: false,
+    is_new_user: true,
   };
 
   const db = getUsersDatabase();
@@ -179,4 +187,56 @@ export function registerUser(input: {
     success: true,
     user: newUser,
   };
+}
+
+/**
+ * Mark a user's profile setup as completed in the database
+ */
+export function markUserProfileCompleted(emailOrId: string): void {
+  if (!emailOrId || typeof window === "undefined") return;
+  const cleanKey = emailOrId.trim().toLowerCase();
+  const db = getUsersDatabase();
+  let changed = false;
+  const updatedDb = db.map((user) => {
+    if (
+      user.id === emailOrId ||
+      user.email.toLowerCase() === cleanKey
+    ) {
+      changed = true;
+      return {
+        ...user,
+        profile_completed: true,
+        is_new_user: false,
+      };
+    }
+    return user;
+  });
+
+  if (changed) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedDb));
+    } catch (e) {
+      console.warn("Failed to update user profile completed status:", e);
+    }
+  }
+}
+
+/**
+ * Check if a user has completed their profile setup
+ */
+export function isUserProfileCompleted(emailOrId: string): boolean {
+  if (!emailOrId) return false;
+  const cleanKey = emailOrId.trim().toLowerCase();
+  const db = getUsersDatabase();
+  const found = db.find(
+    (u) => u.id === emailOrId || u.email.toLowerCase() === cleanKey
+  );
+  if (!found) return false;
+  if (found.profile_completed !== undefined) {
+    return Boolean(found.profile_completed);
+  }
+  if (found.is_new_user !== undefined) {
+    return !found.is_new_user;
+  }
+  return true;
 }

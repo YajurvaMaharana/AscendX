@@ -12,6 +12,7 @@ import React, {
 import type { User, Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { isValidUUID, emailToUUID } from "@/lib/supabase/env";
+import { isUserProfileCompleted, markUserProfileCompleted } from "@/lib/userDatabase";
 
 export interface NormalizedUser {
   id: string;
@@ -199,6 +200,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const interviewGoals = rawUser.interview_goals || rawUser.user_metadata?.interview_goals || null;
       const targetCompanies = rawUser.target_companies || rawUser.user_metadata?.target_companies || null;
 
+      const profileCompleted =
+        rawUser.profile_completed !== undefined
+          ? Boolean(rawUser.profile_completed)
+          : rawUser.user_metadata?.profile_completed !== undefined
+          ? Boolean(rawUser.user_metadata.profile_completed)
+          : isUserProfileCompleted(email || id);
+
+      const isNewUser = !profileCompleted;
+
       const userPayload = {
         id,
         email,
@@ -212,6 +222,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         preferred_language: preferredLanguage,
         interview_goals: interviewGoals,
         target_companies: targetCompanies,
+        profile_completed: profileCompleted,
+        is_new_user: isNewUser,
         user_metadata: {
           display_name: displayName,
           full_name: displayName,
@@ -224,6 +236,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           preferred_language: preferredLanguage,
           interview_goals: interviewGoals,
           target_companies: targetCompanies,
+          profile_completed: profileCompleted,
+          is_new_user: isNewUser,
           ...(rawUser.user_metadata || {}),
         },
       };
@@ -383,6 +397,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const newResumeParsedAt = updates.resume_parsed_at !== undefined ? updates.resume_parsed_at : (u.resume_parsed_at || null);
       const newResumeData = updates.resume_data !== undefined ? updates.resume_data : (u.resume_data || null);
 
+      markUserProfileCompleted(currentEmail);
+      markUserProfileCompleted(currentId);
+
       const updatedUserPayload: NormalizedUser = {
         ...user,
         id: currentId,
@@ -401,6 +418,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         resume_filename: newResumeFilename,
         resume_parsed_at: newResumeParsedAt,
         resume_data: newResumeData,
+        profile_completed: true,
+        is_new_user: false,
         user_metadata: {
           ...(user.user_metadata || {}),
           display_name: newDisplayName,
@@ -418,6 +437,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           resume_filename: newResumeFilename,
           resume_parsed_at: newResumeParsedAt,
           resume_data: newResumeData,
+          profile_completed: true,
+          is_new_user: false,
         },
       };
 

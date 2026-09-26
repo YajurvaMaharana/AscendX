@@ -6,9 +6,10 @@ import { usePathname, useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import SlidingAuth from "@/components/auth/SlidingAuth";
 import { Loader2 } from "lucide-react";
+import { isUserProfileCompleted } from "@/lib/userDatabase";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -21,12 +22,21 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isLoading) {
       if (isAuthenticated && isAuthRoute) {
-        router.replace("/dashboard");
+        const u = user as any;
+        const isNew =
+          u?.profile_completed === false ||
+          u?.is_new_user === true ||
+          u?.user_metadata?.profile_completed === false ||
+          u?.user_metadata?.is_new_user === true ||
+          (u?.email && !isUserProfileCompleted(u.email));
+
+        const destination = isNew ? "/profile?onboarding=true" : "/dashboard";
+        router.replace(destination);
       } else if (!isAuthenticated && !isAuthRoute) {
         router.replace("/auth?mode=signin");
       }
     }
-  }, [isAuthenticated, isAuthRoute, isLoading, router]);
+  }, [isAuthenticated, isAuthRoute, isLoading, router, user]);
 
   if (isLoading) {
     return (

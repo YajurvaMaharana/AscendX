@@ -13,6 +13,7 @@ import {
   registerUser,
   isEmailRegistered,
   getUsersDatabase,
+  isUserProfileCompleted,
   UserRecord,
 } from "@/lib/userDatabase";
 import {
@@ -108,7 +109,16 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
   useEffect(() => {
     if (authUser && !authLoading && !isRedirectingRef.current) {
       isRedirectingRef.current = true;
-      router.replace("/dashboard");
+      const u = authUser as any;
+      const isNew =
+        u.profile_completed === false ||
+        u.is_new_user === true ||
+        u.user_metadata?.profile_completed === false ||
+        u.user_metadata?.is_new_user === true ||
+        (u.email && !isUserProfileCompleted(u.email));
+
+      const destination = isNew ? "/profile?onboarding=true" : "/dashboard";
+      router.replace(destination);
     }
   }, [authUser, authLoading, router]);
 
@@ -123,11 +133,19 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
 
   // Process successful database auth match
   const processAuthSuccess = async (
-    userRecord: { id: string; email: string; name: string; target_role?: string },
+    userRecord: {
+      id: string;
+      email: string;
+      name: string;
+      target_role?: string;
+      profile_completed?: boolean;
+      is_new_user?: boolean;
+    },
     isNewRegistration: boolean = false
   ) => {
     setIsLoading(true);
     setErrorMessage(null);
+    isRedirectingRef.current = true;
 
     if (typeof window !== "undefined" && rememberMe && userRecord.email) {
       try {
@@ -135,9 +153,15 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
       } catch {}
     }
 
+    const isNewUser =
+      isNewRegistration ||
+      userRecord.is_new_user === true ||
+      userRecord.profile_completed === false ||
+      !isUserProfileCompleted(userRecord.email);
+
     setSuccessMessage(
-      isNewRegistration
-        ? "Account created & verified! Entering AscendX..."
+      isNewUser
+        ? "Account verified! Directing to profile setup..."
         : "Credentials verified! Directing to dashboard..."
     );
 
@@ -146,10 +170,14 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
       const mockUserObj = {
         id: userRecord.id,
         email: userRecord.email,
+        profile_completed: !isNewUser,
+        is_new_user: isNewUser,
         user_metadata: {
           display_name: userRecord.name,
           full_name: userRecord.name,
           target_role: userRecord.target_role || "Senior Full-Stack Engineer",
+          profile_completed: !isNewUser,
+          is_new_user: isNewUser,
         },
       };
       await syncUser(mockUserObj, "mock-database-token", userRecord.name);
@@ -160,8 +188,8 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
     // Refresh verified users list
     setVerifiedUsers(getUsersDatabase());
 
-    // 2. Programmatically navigate router path to destination (/dashboard or /onboarding)
-    const destination = isNewRegistration ? "/onboarding" : "/dashboard";
+    // 2. Programmatically navigate router path to destination (/profile?onboarding=true or /dashboard)
+    const destination = isNewUser ? "/profile?onboarding=true" : "/dashboard";
     router.replace(destination);
   };
 
@@ -184,6 +212,12 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
       return;
     }
 
+    const userCompleted = isUserProfileCompleted(result.user.email);
+    const isNew =
+      !userCompleted ||
+      result.user.is_new_user === true ||
+      result.user.profile_completed === false;
+
     // Database check passed! Process authentication
     await processAuthSuccess(
       {
@@ -191,8 +225,10 @@ export default function SlidingAuth({ initialMode }: SlidingAuthProps) {
         email: result.user.email,
         name: result.user.name,
         target_role: result.user.target_role,
+        profile_completed: !isNew,
+        is_new_user: isNew,
       },
-      false
+      isNew
     );
   };
 

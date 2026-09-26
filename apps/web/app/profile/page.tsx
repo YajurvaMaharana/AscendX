@@ -32,6 +32,7 @@ import {
   Download,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { markUserProfileCompleted } from "@/lib/userDatabase";
 import { ResumeManager } from "@/components/profile/ResumeManager";
 import PrivacyTrustSettings from "@/components/profile/PrivacyTrustSettings";
 
@@ -356,6 +357,9 @@ function ProfilePageContent() {
     setErrorMessage(null);
 
     try {
+      if (user?.email) markUserProfileCompleted(user.email);
+      if (user?.id) markUserProfileCompleted(user.id);
+
       const success = await updateUserProfile({
         display_name: displayName.trim() || "Candidate",
         target_role: targetRole.trim() || "Software Engineer",
