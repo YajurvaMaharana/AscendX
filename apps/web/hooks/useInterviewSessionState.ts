@@ -168,11 +168,31 @@ export function useInterviewSessionPersistence({
     return saved?.elapsedSeconds ?? 0;
   });
 
-  // Calculate current question index from AI messages
-  const questionIndex = Math.max(
-    1,
-    messages.filter((m) => m.role === "assistant" || m.role === "interviewer").length
-  );
+  // Statefully track and manage question index, initialized from storage or assistant messages
+  const [questionIndex, setQuestionIndex] = useState<number>(() => {
+    const saved = getStoredSessionState(sessionId);
+    if (saved?.questionIndex && saved.questionIndex >= 1) {
+      return saved.questionIndex;
+    }
+    const aiCount = messages.filter(
+      (m) => m.role === "assistant" || m.role === "interviewer"
+    ).length;
+    return Math.max(1, aiCount);
+  });
+
+  // Automatically sync questionIndex if more AI question messages arrive
+  useEffect(() => {
+    const aiCount = messages.filter(
+      (m) => m.role === "assistant" || m.role === "interviewer"
+    ).length;
+    if (aiCount > questionIndex) {
+      setQuestionIndex(aiCount);
+    }
+  }, [messages, questionIndex]);
+
+  const advanceQuestion = useCallback(() => {
+    setQuestionIndex((prev) => prev + 1);
+  }, []);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -256,6 +276,8 @@ export function useInterviewSessionPersistence({
   return {
     elapsedSeconds,
     questionIndex,
+    setQuestionIndex,
+    advanceQuestion,
     setElapsedSeconds,
   };
 }

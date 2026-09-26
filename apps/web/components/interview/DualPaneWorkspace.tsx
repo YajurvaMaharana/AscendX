@@ -35,6 +35,11 @@ import { stopMediaStream, stopElementMediaStream } from "@/lib/utils/media-clean
 import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 import type { ChatMessage } from "@/components/interview/ChatBubble";
 import type { SessionAdaptiveTelemetry } from "@/lib/services/ai-engine/adaptive-engine.service";
+import {
+  INTERVIEW_QUESTIONS,
+  TOTAL_INTERVIEW_QUESTIONS,
+  getInterviewQuestionByIndex,
+} from "@/lib/constants/interview-questions";
 
 interface DualPaneWorkspaceProps {
   sessionRole?: string;
@@ -44,6 +49,9 @@ interface DualPaneWorkspaceProps {
   telemetry?: SessionAdaptiveTelemetry | null;
   isLoading: boolean;
   onSendMessage: (text: string) => Promise<void> | void;
+  onNextQuestion?: (nextIndex?: number, phaseTitle?: string) => Promise<void> | void;
+  hasSubmittedAnswer?: boolean;
+  onAnswerSubmittedChange?: (submitted: boolean) => void;
   onEndSession?: () => void;
   isImmersive?: boolean;
   onToggleImmersive?: () => void;
@@ -68,6 +76,9 @@ export function DualPaneWorkspace({
   telemetry,
   isLoading,
   onSendMessage,
+  onNextQuestion,
+  hasSubmittedAnswer,
+  onAnswerSubmittedChange,
   onEndSession,
   isImmersive = true,
   onToggleImmersive,
@@ -77,6 +88,40 @@ export function DualPaneWorkspace({
   jdData,
   tts,
 }: DualPaneWorkspaceProps) {
+  // Active Question and Answer Flow State Management
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(questionIndex || 1);
+  useEffect(() => {
+    if (questionIndex) {
+      setCurrentQuestionIndex(questionIndex);
+    }
+  }, [questionIndex]);
+
+  const [isAnswerSubmitted, setIsAnswerSubmitted] = useState<boolean>(Boolean(hasSubmittedAnswer));
+  useEffect(() => {
+    if (hasSubmittedAnswer !== undefined) {
+      setIsAnswerSubmitted(hasSubmittedAnswer);
+    }
+  }, [hasSubmittedAnswer]);
+
+  const [lastSubmittedAnswer, setLastSubmittedAnswer] = useState<string | null>(null);
+
+  // Phase Progression Definition
+  const PHASES = React.useMemo(() => [
+    { index: 1, name: "Introduction & Context", label: "Icebreaker & Background", description: "Role overview and baseline context" },
+    { index: 2, name: "Core Technical & Algorithmic", label: "Core Technical", description: "Algorithmic problem-solving and implementation" },
+    { index: 3, name: "High-Scale Concurrency & System Design", label: "System Design", description: "Distributed bottlenecks and latency trade-offs" },
+    { index: 4, name: "Behavioral & Situational (STAR)", label: "Behavioral STAR", description: "Leadership, conflict resolution and measurable impact" },
+    { index: 5, name: "Candidate Questions & Closing", label: "Closing Debrief", description: "Candidate questions and structured evaluation" },
+  ], []);
+
+  const currentPhase = React.useMemo(() => {
+    if (currentQuestionIndex <= 1) return PHASES[0];
+    if (currentQuestionIndex === 2) return PHASES[1];
+    if (currentQuestionIndex === 3) return PHASES[2];
+    if (currentQuestionIndex === 4) return PHASES[3];
+    return PHASES[4];
+  }, [currentQuestionIndex, PHASES]);
+
   // Media controls state
   const [userMicActive, setUserMicActive] = useState<boolean>(true);
   const [userCameraActive, setUserCameraActive] = useState<boolean>(true);
@@ -302,24 +347,88 @@ export function DualPaneWorkspace({
     }, 50);
   };
 
-  // Submit response handler
+  // Answer Submission Handler - updates submission state, triggers state updates, and sends to AI engine
   const handleSubmit = async () => {
     if (!codeResponse.trim() || isLoading) return;
     const submission = codeResponse.trim();
+    setLastSubmittedAnswer(submission);
+    setIsAnswerSubmitted(true);
+    if (onAnswerSubmittedChange) onAnswerSubmittedChange(true);
     clearDraft();
     setUserLiveTranscript("");
     try {
       await onSendMessage(submission);
     } catch {
       setCodeResponse(submission);
+      setIsAnswerSubmitted(false);
+      if (onAnswerSubmittedChange) onAnswerSubmittedChange(false);
     }
+  };
+
+  // Next Question Handler - advances interview state to subsequent question and triggers load
+  const handleNextQuestion = async () => {
+    if (isLoading) return;
+
+    // If candidate has code/text in buffer that hasn't been submitted yet, submit it first!
+    if (!isAnswerSubmitted && codeResponse.trim().length > 0) {
+      const submission = codeResponse.trim();
+      setLastSubmittedAnswer(submission);
+      setIsAnswerSubmitted(true);
+      if (onAnswerSubmittedChange) onAnswerSubmittedChange(true);
+      clearDraft();
+      setUserLiveTranscript("");
+      try {
+        await onSendMessage(submission);
+      } catch {
+        setCodeResponse(submission);
+        setIsAnswerSubmitted(false);
+        if (onAnswerSubmittedChange) onAnswerSubmittedChange(false);
+        return;
+      }
+    }
+
+    // Advance question index and phase
+    const nextIndex = currentQuestionIndex + 1;
+    setCurrentQuestionIndex(nextIndex);
+    setIsAnswerSubmitted(false);
+    setLastSubmittedAnswer(null);
+    if (onAnswerSubmittedChange) onAnswerSubmittedChange(false);
+    clearDraft();
+    setCodeResponse("");
+
+    const nextPhaseObj =
+      nextIndex <= 1
+        ? PHASES[0]
+        : nextIndex === 2
+        ? PHASES[1]
+        : nextIndex === 3
+        ? PHASES[2]
+        : nextIndex === 4
+        ? PHASES[3]
+        : PHASES[4];
+
+    if (onNextQuestion) {
+      await onNextQuestion(nextIndex, nextPhaseObj.name);
+    } else {
+      await onSendMessage(
+        `[Proceed to Question ${nextIndex}: ${nextPhaseObj.name}] Please present the question for this phase to the candidate.`
+      );
+    }
+
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 150);
   };
 
   // Handle Enter to submit (Shift+Enter for newline)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit();
+      if (isAnswerSubmitted) {
+        handleNextQuestion();
+      } else {
+        handleSubmit();
+      }
     }
   };
 
@@ -329,10 +438,51 @@ export function DualPaneWorkspace({
     tts.toggleMute();
   };
 
-  // Format the AI spoken text with highlight on role / keywords
-  const promptText =
-    latestAiMessage?.content ||
-    `I'm ${personaDisplayName}. We're here to determine if you have the technical rigor required for the ${sessionRole} role. I value precision, architectural foresight, and an uncompromising approach to system efficiency. We don't have time for fluff, so let's dive straight into the technical architecture.`;
+  // 1. Array Content Pointer Synchronization:
+  // Map currentQuestionIndex cleanly to array index 0..4 (5th element = index 4)
+  const arrayIndex = React.useMemo(() => {
+    const idx = currentQuestionIndex >= 1 && currentQuestionIndex <= INTERVIEW_QUESTIONS.length
+      ? currentQuestionIndex - 1
+      : currentQuestionIndex;
+    return Math.max(0, Math.min(idx, INTERVIEW_QUESTIONS.length - 1));
+  }, [currentQuestionIndex]);
+
+  // Active question text object from 5-element INTERVIEW_QUESTIONS array
+  const activeQuestionTextObject = INTERVIEW_QUESTIONS[arrayIndex] || INTERVIEW_QUESTIONS[0];
+
+  // Active Question Prompt State Variable:
+  // Pulls specific AI stream message for current index or the 5th element closing script for index 4
+  const activePrompt = React.useMemo(() => {
+    const aiMessages = messages.filter(
+      (m) => m.role === "assistant" || m.role === "interviewer" || m.role === "system"
+    );
+    const specificAiMessage = aiMessages[arrayIndex]?.content;
+    if (specificAiMessage && specificAiMessage.trim().length > 0) {
+      return specificAiMessage.trim();
+    }
+    return activeQuestionTextObject.prompt;
+  }, [messages, arrayIndex, activeQuestionTextObject]);
+
+  const currentQuestionPromptText = activePrompt;
+  const promptText = activePrompt;
+
+  // 2. Text-to-Speech Trigger on Text Change:
+  // Bind the speech synthesis trigger (tts.speak(activePrompt)) directly to the activePrompt state variable
+  const lastSpokenPromptRef = useRef<string>("");
+
+  useEffect(() => {
+    if (!aiVoiceActive || tts.isMuted) return;
+    if (!activePrompt || !activePrompt.trim()) return;
+
+    if (lastSpokenPromptRef.current !== activePrompt) {
+      lastSpokenPromptRef.current = activePrompt;
+      tts.stop();
+      const timer = setTimeout(() => {
+        tts.speak(activePrompt);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [activePrompt, aiVoiceActive, tts]);
 
   // Compute dynamic AI Insight Cards based on active telemetry or question context
   const insightCards = React.useMemo(() => {
@@ -413,10 +563,10 @@ export function DualPaneWorkspace({
               <span>LIVE INTERVIEW</span>
             </span>
 
-            {/* Preserved Question Index Badge */}
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/25 text-blue-400 font-mono text-[11px]">
-              <span className="font-bold">Q{questionIndex}</span>
-              <span className="text-blue-500/70">/ Probe Phase</span>
+            {/* Dynamic Question Index Badge */}
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/25 text-blue-400 font-mono text-[11px]">
+              <span className="font-bold">Q{currentQuestionIndex}</span>
+              <span className="text-blue-500/70">/ {currentPhase.label}</span>
             </span>
 
             {/* Preserved Elapsed Session Timer */}
@@ -810,25 +960,63 @@ function optimizeExecution(nodes) {
                   )}
                 </div>
 
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleSubmit}
-                  disabled={!codeResponse.trim() || isLoading}
-                  className="gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-[#E8602E] to-[#F27740] hover:from-[#DC5420] hover:to-[#E8602E] text-white font-semibold text-xs shadow-md shadow-orange-950/40 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                >
-                  {isLoading ? (
-                    <>
-                      <span className="h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                      <span>Evaluating...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Submit</span>
-                      <Send className="h-3 w-3" />
-                    </>
-                  )}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    id="interview-submit-answer-btn"
+                    size="sm"
+                    onClick={handleSubmit}
+                    disabled={!codeResponse.trim() || isLoading}
+                    className={cn(
+                      "gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold shadow-md transition-all cursor-pointer",
+                      isAnswerSubmitted
+                        ? "bg-emerald-600/90 hover:bg-emerald-600 text-white shadow-emerald-950/40"
+                        : "bg-[#1E2536] hover:bg-[#273248] text-slate-200 border border-[#2B3850]"
+                    )}
+                  >
+                    {isLoading ? (
+                      <>
+                        <span className="h-3 w-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                        <span>Evaluating...</span>
+                      </>
+                    ) : isAnswerSubmitted ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-white" />
+                        <span>Answer Submitted</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-3 w-3 text-[#E8602E]" />
+                        <span>Submit Answer</span>
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    id="next-question-btn"
+                    size="sm"
+                    onClick={handleNextQuestion}
+                    disabled={isLoading || (!isAnswerSubmitted && !codeResponse.trim())}
+                    className={cn(
+                      "gap-2 px-5 py-2 rounded-xl text-white font-semibold text-xs shadow-md transition-all cursor-pointer",
+                      isAnswerSubmitted
+                        ? "bg-gradient-to-r from-[#E8602E] via-[#F06A35] to-[#F58245] hover:from-[#DC5420] hover:to-[#E8602E] shadow-orange-950/50 ring-2 ring-[#E8602E]/60 animate-pulse"
+                        : "bg-gradient-to-r from-[#E8602E] to-[#F27740] hover:from-[#DC5420] hover:to-[#E8602E] shadow-orange-950/30",
+                      isLoading || (!isAnswerSubmitted && !codeResponse.trim()) ? "opacity-50 cursor-not-allowed" : ""
+                    )}
+                    title={
+                      isAnswerSubmitted
+                        ? "Advance to the next question"
+                        : codeResponse.trim()
+                        ? "Submit current answer and advance to next question"
+                        : "Submit an answer to advance to the next question"
+                    }
+                  >
+                    <span>Next Question</span>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -857,41 +1045,59 @@ function optimizeExecution(nodes) {
                 <div className="flex items-center justify-between text-xs text-amber-300">
                   <div className="flex items-center gap-1.5 font-semibold">
                     <Sparkles className="h-3.5 w-3.5 text-[#E8602E] animate-pulse" />
-                    <span>Active Dialogue &amp; Framing</span>
+                    <span>Question #{currentQuestionIndex}: {currentPhase.name}</span>
                   </div>
-                  {tts.isSpeaking && (
-                    <span className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#E8602E]/20 text-[#F58245] border border-[#E8602E]/30 animate-pulse">
-                      <Volume2 className="h-2.5 w-2.5" />
-                      Streaming Voice
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#E8602E]/20 text-orange-300 border border-[#E8602E]/30">
+                      Phase {currentPhase.index}/5
                     </span>
-                  )}
+                    {tts.isSpeaking && (
+                      <span className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#E8602E]/20 text-[#F58245] border border-[#E8602E]/30 animate-pulse">
+                        <Volume2 className="h-2.5 w-2.5" />
+                        Speaking
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="text-xs sm:text-sm text-slate-200 leading-relaxed font-sans font-normal tracking-wide">
-                  <span className="text-amber-400 font-bold mr-1">
-                    I&apos;m {personaDisplayName}.
-                  </span>
-                  <span>
-                    We&apos;re here to determine if you have the technical rigor required for the{" "}
-                  </span>
-                  <span className="font-extrabold text-[#F58245] underline decoration-amber-500/40 underline-offset-4">
-                    {sessionRole} role
-                  </span>
-                  <span>
-                    . I value precision, architectural foresight, and an uncompromising approach to system efficiency. We don&apos;t have time for fluff, so let&apos;s dive straight into the technical architecture and real-world system constraints.
-                  </span>
-                </div>
-
-                {/* Sub-text if AI message provided */}
-                {latestAiMessage && latestAiMessage.content && (
-                  <div className="mt-3 pt-3 border-t border-[#263146] text-xs text-slate-300 bg-[#0F141E]/80 rounded-xl p-3 border border-[#20293C]">
-                    <div className="text-[11px] font-bold text-amber-400/90 mb-1 flex items-center gap-1">
+                {/* Primary Active Question Prompt */}
+                <div className="p-3.5 rounded-xl bg-[#0D121B] border border-[#232D3F] space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-amber-400">
+                    <span className="flex items-center gap-1">
                       <ChevronRight className="h-3 w-3 text-[#E8602E]" />
-                      Current Prompt:
+                      Active Question Prompt:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => tts.speak(currentQuestionPromptText)}
+                      className="text-[10px] font-mono text-slate-400 hover:text-amber-300 transition-colors flex items-center gap-1 cursor-pointer"
+                      title="Replay Audio for this question"
+                    >
+                      <Volume2 className="h-3 w-3" /> Replay Question
+                    </button>
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-100 leading-relaxed font-sans whitespace-pre-wrap">
+                    {currentQuestionPromptText}
+                  </p>
+                </div>
+
+                {/* Real-time Answer Submission Status Banner */}
+                {isAnswerSubmitted && (
+                  <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs animate-in fade-in duration-300">
+                    <div className="flex items-center gap-1.5">
+                      <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                      <span className="font-medium">
+                        Answer submitted for Question #{currentQuestionIndex}. Click <strong>&quot;Next Question&quot;</strong> to advance to subsequent state.
+                      </span>
                     </div>
-                    <p className="whitespace-pre-wrap leading-relaxed">
-                      {latestAiMessage.content}
-                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleNextQuestion}
+                      className="h-7 px-3 text-[11px] font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-lg cursor-pointer shrink-0"
+                    >
+                      Advance →
+                    </Button>
                   </div>
                 )}
               </div>

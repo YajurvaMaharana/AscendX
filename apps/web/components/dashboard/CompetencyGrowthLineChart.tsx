@@ -63,26 +63,6 @@ export default function CompetencyGrowthLineChart({
     });
   }, [data]);
 
-  // If no data exists, render clean zero state
-  if (normalizedData.length === 0) {
-    return (
-      <div className="w-full h-full flex flex-col justify-between space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">{title}</h3>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">{subtitle}</p>
-          </div>
-          <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
-            0 Sessions
-          </span>
-        </div>
-        <div className="py-6">
-          <DashboardEmptyState type="no_sessions" />
-        </div>
-      </div>
-    );
-  }
-
   // Filter sessions based on selection
   const filteredData = useMemo(() => {
     if (filter === "7d") {
@@ -116,6 +96,26 @@ export default function CompetencyGrowthLineChart({
     }
     return `Your readiness increased by ${totalPointsGrowth} points (+${growthPercentage}%) across your last ${count} sessions (from ${firstSession.score} to ${latestSession.score}).`;
   }, [filteredData, totalPointsGrowth, growthPercentage, firstSession.score, latestSession.score]);
+
+  // If no data exists, render clean zero state
+  if (normalizedData.length === 0) {
+    return (
+      <div className="w-full h-full flex flex-col justify-between space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">{title}</h3>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">{subtitle}</p>
+          </div>
+          <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+            0 Sessions
+          </span>
+        </div>
+        <div className="py-6">
+          <DashboardEmptyState type="no_sessions" />
+        </div>
+      </div>
+    );
+  }
 
   // SVG Chart Geometry
   const svgWidth = 560;

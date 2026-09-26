@@ -35,6 +35,11 @@ interface LiveVoiceWorkspaceProps {
   contextRole?: string;
   onSwitchToTextMode?: () => void;
   className?: string;
+  questionIndex?: number;
+  questionTitle?: string;
+  questionPrompt?: string;
+  onNextQuestion?: () => void;
+  hasSubmittedAnswer?: boolean;
 }
 
 export function LiveVoiceWorkspace({
@@ -43,6 +48,11 @@ export function LiveVoiceWorkspace({
   contextRole,
   onSwitchToTextMode,
   className,
+  questionIndex = 1,
+  questionTitle,
+  questionPrompt,
+  onNextQuestion,
+  hasSubmittedAnswer = false,
 }: LiveVoiceWorkspaceProps) {
   const {
     recordingState,
@@ -245,6 +255,33 @@ export function LiveVoiceWorkspace({
           >
             <RefreshCw className="h-3 w-3 mr-1" /> Try Again
           </Button>
+        </div>
+      )}
+
+      {/* ── Active Question Card ── */}
+      {questionPrompt && (
+        <div className="my-3 p-3.5 rounded-xl border border-orange-500/25 bg-orange-500/5 dark:bg-orange-950/20 space-y-2">
+          <div className="flex items-center justify-between text-xs font-bold text-orange-600 dark:text-orange-400">
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5" />
+              Question #{questionIndex}{questionTitle ? `: ${questionTitle}` : ""}
+            </span>
+            {onNextQuestion && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onNextQuestion}
+                disabled={disabled}
+                className="h-6 text-[10px] px-2.5 rounded-lg border-orange-500/30 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 cursor-pointer"
+              >
+                Next Question →
+              </Button>
+            )}
+          </div>
+          <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans">
+            {questionPrompt}
+          </p>
         </div>
       )}
 

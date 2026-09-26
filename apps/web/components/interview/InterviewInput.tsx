@@ -1,13 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { SendHorizonal, Loader2, Mic, Check, Clock, RotateCcw } from "lucide-react";
+import { SendHorizonal, Loader2, Mic, Check, Clock, RotateCcw, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 import { cn } from "@/lib/utils";
 
 export interface InterviewInputProps {
   onSend: (message: string) => Promise<void> | void;
+  onNextQuestion?: () => void;
+  hasSubmittedAnswer?: boolean;
+  questionIndex?: number;
   disabled?: boolean;
   placeholder?: string;
   className?: string;
@@ -21,6 +24,9 @@ export interface InterviewInputProps {
 
 export function InterviewInput({
   onSend,
+  onNextQuestion,
+  hasSubmittedAnswer = false,
+  questionIndex = 1,
   disabled = false,
   placeholder = "Type your response here... (Press Enter to send, Shift+Enter for a new line)",
   className,
@@ -145,6 +151,26 @@ export function InterviewInput({
           />
 
           <div className="flex shrink-0 items-center pb-1 pr-1 gap-1.5">
+            {onNextQuestion && (
+              <Button
+                type="button"
+                id="stream-next-question-btn"
+                variant="outline"
+                size="sm"
+                onClick={onNextQuestion}
+                disabled={disabled}
+                className={cn(
+                  "h-10 px-3 rounded-xl text-xs font-semibold gap-1.5 transition-all cursor-pointer",
+                  hasSubmittedAnswer
+                    ? "bg-[#E8602E] hover:bg-[#d85322] text-white border-transparent shadow-sm shadow-orange-500/30 animate-pulse ring-1 ring-orange-400"
+                    : "border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                )}
+                title={hasSubmittedAnswer ? "Advance to Next Question" : "Skip or Advance to Next Question"}
+              >
+                <span>Next Question</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            )}
             <Button
               type="submit"
               size="icon"

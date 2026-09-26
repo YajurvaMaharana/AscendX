@@ -45,6 +45,11 @@ import {
   markSessionCompleted,
   clearActiveSession,
 } from "@/hooks/useInterviewSessionState";
+import {
+  INTERVIEW_QUESTIONS,
+  TOTAL_INTERVIEW_QUESTIONS,
+  getInterviewQuestionByIndex,
+} from "@/lib/constants/interview-questions";
 
 interface InterviewResponse {
   message: string;
@@ -203,7 +208,7 @@ function InterviewPageContent() {
   const isLoading = isStreaming;
 
   // Unified persistent session management: tracks elapsed time and persists state
-  const { elapsedSeconds, questionIndex } = useInterviewSessionPersistence({
+  const { elapsedSeconds, questionIndex, setQuestionIndex } = useInterviewSessionPersistence({
     sessionId: interviewId,
     messages,
     telemetry,
@@ -213,6 +218,33 @@ function InterviewPageContent() {
     isImmersiveMode,
     isVoiceMode,
   });
+
+  const [hasSubmittedAnswer, setHasSubmittedAnswer] = React.useState<boolean>(false);
+
+  // 1. Array Content Pointer Synchronization:
+  // Map questionIndex cleanly to array index 0..4 (5th element = index 4)
+  const arrayIndex = React.useMemo(() => {
+    const idx = questionIndex >= 1 && questionIndex <= INTERVIEW_QUESTIONS.length
+      ? questionIndex - 1
+      : questionIndex;
+    return Math.max(0, Math.min(idx, INTERVIEW_QUESTIONS.length - 1));
+  }, [questionIndex]);
+
+  // Active question text object from 5-element INTERVIEW_QUESTIONS array
+  const activeQuestionTextObject = INTERVIEW_QUESTIONS[arrayIndex] || INTERVIEW_QUESTIONS[0];
+
+  // Active Question Prompt State Variable:
+  // Pulls specific AI stream message for current index or the 5th element closing script for index 4
+  const activePrompt = React.useMemo(() => {
+    const aiMessages = messages.filter(
+      (m) => m.role === "assistant" || m.role === "interviewer" || m.role === "system"
+    );
+    const specificAiMessage = aiMessages[arrayIndex]?.content;
+    if (specificAiMessage && specificAiMessage.trim().length > 0) {
+      return specificAiMessage.trim();
+    }
+    return activeQuestionTextObject.prompt;
+  }, [messages, arrayIndex, activeQuestionTextObject]);
 
   // Latest AI message text for quick replay
   const latestAiMessage = React.useMemo(() => {
@@ -230,34 +262,32 @@ function InterviewPageContent() {
     setShowPreFlightModal(false);
 
     // Speak initial greeting smoothly once pre-flight is cleared
-    if (latestAiMessage && latestAiMessage.id && tts.autoPlayEnabled && !tts.isMuted) {
-      if (!spokenMessageIdsRef.current.has(latestAiMessage.id)) {
-        spokenMessageIdsRef.current.add(latestAiMessage.id);
-        setTimeout(() => {
-          tts.speak(latestAiMessage.content);
-        }, 400);
-      }
+    if (activePrompt && tts.autoPlayEnabled && !tts.isMuted) {
+      setTimeout(() => {
+        tts.speak(activePrompt);
+      }, 400);
     }
   };
 
-  // Auto-speak new AI interviewer questions as soon as generated (Hands-Free Flow)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // 2. Text-to-Speech Trigger on Text Change:
+  // Bind speech synthesis trigger (tts.speak(activePrompt)) directly to activePrompt state variable
+  const lastSpokenPromptRef = React.useRef<string>("");
+
   React.useEffect(() => {
+    if (activeLayout === "dual-pane") return; // DualPaneWorkspace handles its speech locally
     if (showPreFlightModal) return; // Do not speak while preflight diagnostic is active
-    if (!latestAiMessage || !latestAiMessage.id) return;
+    if (!tts.autoPlayEnabled || tts.isMuted) return;
+    if (!activePrompt || !activePrompt.trim()) return;
 
-    if (!spokenMessageIdsRef.current.has(latestAiMessage.id)) {
-      spokenMessageIdsRef.current.add(latestAiMessage.id);
-
-      if (tts.autoPlayEnabled && !tts.isMuted) {
-        // Subtle delay to ensure smooth UI transition before speech begins
-        const timer = setTimeout(() => {
-          tts.speak(latestAiMessage.content);
-        }, 250);
-        return () => clearTimeout(timer);
-      }
+    if (lastSpokenPromptRef.current !== activePrompt) {
+      lastSpokenPromptRef.current = activePrompt;
+      tts.stop();
+      const timer = setTimeout(() => {
+        tts.speak(activePrompt);
+      }, 300);
+      return () => clearTimeout(timer);
     }
-  }, [latestAiMessage, showPreFlightModal]);
+  }, [activeLayout, activePrompt, showPreFlightModal, tts.autoPlayEnabled, tts.isMuted]);
 
   // Load existing session, messages, and initial telemetry
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -350,6 +380,7 @@ function InterviewPageContent() {
     tts.stop();
     setError(null);
     setLastFailedMessage(null);
+    setHasSubmittedAnswer(true);
 
     try {
       await append({
@@ -363,6 +394,34 @@ function InterviewPageContent() {
           : "Streaming connection issue. Please try again.";
       setError(`Failed to receive response: ${errorMessage}`);
       setLastFailedMessage(content);
+      setHasSubmittedAnswer(false);
+    }
+  };
+
+  const handleNextQuestion = async (targetIndex?: number, phaseTitle?: string) => {
+    tts.stop();
+    const nextIdx = targetIndex ?? (questionIndex + 1);
+    setQuestionIndex(nextIdx);
+    setHasSubmittedAnswer(false);
+    setError(null);
+
+    const phaseMap: Record<number, string> = {
+      1: "Introduction & Technical Context",
+      2: "Core Technical & Algorithmic Problem Solving",
+      3: "High-Scale Concurrency & System Architecture",
+      4: "Behavioral & Situational (STAR Framework)",
+      5: "Candidate Questions & Wrap-Up",
+    };
+    const phase = phaseTitle || phaseMap[nextIdx] || "Technical & Behavioral Assessment";
+
+    try {
+      await append({
+        role: "user",
+        content: `[Proceed to Question ${nextIdx}: ${phase}] Please present the question for this phase to the candidate.`,
+      });
+    } catch (err: any) {
+      console.warn("Could not load subsequent question:", err);
+      setError("Failed to load subsequent question. Please retry.");
     }
   };
 
@@ -552,6 +611,9 @@ function InterviewPageContent() {
             telemetry={telemetry}
             isLoading={isLoading}
             onSendMessage={handleSendMessage}
+            onNextQuestion={handleNextQuestion}
+            hasSubmittedAnswer={hasSubmittedAnswer}
+            onAnswerSubmittedChange={setHasSubmittedAnswer}
             onEndSession={handleEndSession}
             isImmersive={isImmersiveMode}
             onToggleImmersive={() => setIsImmersiveMode(!isImmersiveMode)}
@@ -667,11 +729,19 @@ function InterviewPageContent() {
                   disabled={isLoading}
                   contextRole={session?.role}
                   onSwitchToTextMode={() => setIsVoiceMode(false)}
+                  questionIndex={arrayIndex + 1}
+                  questionTitle={activeQuestionTextObject.title}
+                  questionPrompt={activePrompt}
+                  onNextQuestion={() => handleNextQuestion()}
+                  hasSubmittedAnswer={hasSubmittedAnswer}
                 />
               </div>
             ) : (
               <InterviewInput
                 onSend={handleSendMessage}
+                onNextQuestion={() => handleNextQuestion()}
+                hasSubmittedAnswer={hasSubmittedAnswer}
+                questionIndex={questionIndex}
                 disabled={isLoading}
                 onToggleVoiceMode={() => setIsVoiceMode(true)}
                 isVoiceMode={isVoiceMode}
